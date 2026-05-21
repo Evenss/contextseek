@@ -1,0 +1,20 @@
+experiment_name: appworld_baseline
+dataset: test_normal
+max_tasks: 0
+resume: true
+output_dir: ./output/appworld
+
+appworld:
+  python: ${APPWORLD_PYTHON}
+
+agent:
+  type: baseline
+  model: gpt-4o
+  max_steps: 25
+  temperature: 0.0
+  llm_api_key: ${OPENAI_API_KEY}
+  llm_base_url: ${LLM_BASE_URL}
+  llm_provider: openai
+
+evaluate:
+  adapter_names: null

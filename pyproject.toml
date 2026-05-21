@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "seekcontext"
+version = "0.1.0"
+description = "SeekContext semantic context substrate for agent systems."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "SeekContext Team" }]
+keywords = ["agent", "context", "memory", "rag", "llm", "provenance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "seekvfs>=0.1.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.3.0",
+    "pyyaml>=6.0",
+    "typing-extensions>=4.10.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ob-labs/seekcontext"
+Repository = "https://github.com/ob-labs/seekcontext"
+Documentation = "https://github.com/ob-labs/seekcontext/tree/main/docs"
+Issues = "https://github.com/ob-labs/seekcontext/issues"
+
+[project.optional-dependencies]
+test = ["pytest>=8.2.0"]
+http = ["fastapi>=0.110.0", "uvicorn>=0.30.0", "pydantic>=2.7.0"]
+langchain = ["langchain-core>=0.3.0"]
+openai = ["langchain-openai>=0.3.0"]
+ollama = ["langchain-ollama>=0.3.0"]
+huggingface = ["langchain-huggingface>=0.1.0"]
+oceanbase = ["pyobvector>=0.1.0", "sqlalchemy>=2.0"]
+appworld-eval = ["openai>=1.0.0", "anthropic>=0.30.0"]
+
+[project.scripts]
+seekcontext = "seekcontext.cli:main"
+seekcontext-mcp-stdio = "seekcontext.mcp:run_stdio_server"
+seekcontext-mcp-sse = "seekcontext.mcp:run_sse_server"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/seekcontext"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "examples"]
+testpaths = ["tests"]
+markers = [
+    "langchain: LangChain agent middleware stack (optional extra)",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+

@@ -1,0 +1,68 @@
+"""Tests for ContextItem serialization/deserialization."""
+
+from seekcontext.domain.context_item import ContextItem, _generate_id, _utc_now
+from seekcontext.domain.links import Link, LinkType
+from seekcontext.domain.provenance import Provenance, SourceType
+from seekcontext.domain.serialization import deserialize_context_item, serialize_context_item
+from seekcontext.domain.stages import Stage
+
+
+def _make_item(**kwargs):
+    defaults = {
+        "id": _generate_id(),
+        "content": "serialization test",
+        "scope": "acme/proj/user1",
+        "provenance": Provenance(
+            source_type=SourceType.human_input,
+            source_id="src1",
+            confidence=0.9,
+        ),
+        "stage": Stage.knowledge,
+        "tags": ["tag1", "tag2"],
+        "links": [Link(target_id="linked-id", relation=LinkType.related_to)],
+        "created_at": _utc_now(),
+    }
+    defaults.update(kwargs)
+    return ContextItem(**defaults)
+
+
+class TestSerialization:
+    def test_roundtrip(self):
+        item = _make_item()
+        payload = serialize_context_item(item)
+        restored = deserialize_context_item(payload)
+        assert restored.id == item.id
+        assert restored.content == item.content
+        assert restored.scope == item.scope
+        assert restored.stage == item.stage
+        assert restored.provenance.source_type == item.provenance.source_type
+        assert restored.provenance.confidence == item.provenance.confidence
+        assert len(restored.links) == len(item.links)
+        assert restored.tags == item.tags
+
+    def test_serialize_produces_dict(self):
+        item = _make_item()
+        payload = serialize_context_item(item)
+        assert isinstance(payload, dict)
+        assert payload["id"] == item.id
+        assert payload["stage"] == "knowledge"
+        assert payload["scope"] == item.scope
+
+    def test_deserialize_minimal(self):
+        payload = {
+            "id": "test-id",
+            "content": "hello",
+            "scope": "t/p/s",
+            "provenance": {
+                "source_type": "human_input",
+                "source_id": "x",
+                "confidence": 1.0,
+            },
+            "stage": "raw",
+            "tags": [],
+            "links": [],
+            "created_at": "2024-01-01T00:00:00+00:00",
+        }
+        item = deserialize_context_item(payload)
+        assert item.id == "test-id"
+        assert item.stage == Stage.raw

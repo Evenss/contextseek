@@ -1,0 +1,20 @@
+# tau-bench Baseline Configuration
+# Native tool-calling agent, no SeekContext integration.
+
+experiment_name: taubench_baseline
+domain: airline
+task_split: base
+max_tasks: 0
+num_trials: 1
+adapter: baseline
+seed: 42
+resume: true
+output_dir: ./output/taubench/baseline
+
+agent:
+  model: gpt-4o
+  user_model: gpt-4o
+  temperature: 0.0
+  max_steps: 100
+
+# No seekcontext section needed for baseline
