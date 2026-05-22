@@ -50,8 +50,8 @@ Configure via `.env` (see [.env.example](.env.example)) or `ContextSeekSettings`
 ## Documentation
 
 - [Getting started (EN)](docs/en/getting-started/quickstart.md) / [快速上手 (ZH)](docs/zh/getting-started/quickstart.md): installation, `.env` setup, and a walkthrough of the core operations.
-- [Client API reference](docs/en/reference/client-api.md): full method signatures for `add`, `retrieve`, `expand`, `compact`, `dream`, `evidence_chain`, and more.
-- [Configuration reference](docs/en/reference/configuration.md): all environment variables and `ContextSeekSettings` fields.
+- [Client API reference](docs/en/reference/api.md): full method signatures for `add`, `retrieve`, `expand`, `compact`, `dream`, `evidence_chain`, and more.
+- [Configuration reference](docs/en/getting-started/configuration.md): all environment variables and `ContextSeekSettings` fields.
 - [DataPlugs](docs/en/guides/integrations/dataplugs.md): how to ingest from RAG pipelines, memory stores, execution traces, and skill / tool registries.
 - [Examples](examples/README.md): annotated scripts for common workflows.
 - [AppWorld eval](eval/appworld/README.md) / [τ-bench eval](eval/taubench/README.md): optional evaluation harnesses with their own setup requirements.
