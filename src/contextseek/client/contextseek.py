@@ -221,7 +221,7 @@ class ContextSeek:
     """Optional StrategyConfig for policy settings."""
 
     skill_executor: Any | None = None
-    """Optional SkillExecutor for execute_skill() operations."""
+    """Reserved for future skill execution integration."""
 
     # ═══════════════════════════════════════════════════════════════════════
     # Internal state
@@ -1405,29 +1405,6 @@ class ContextSeek:
         exporter = SkillExporter()
         prompt_items = self.skills(scope, skill_type="prompt", query=query, k=k)
         return exporter.to_system_prompt(prompt_items)
-
-    def execute_skill(
-        self,
-        ref: str,
-        *,
-        scope: str,
-        args: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Deprecated — ContextSeek no longer executes skills.
-
-        Use :meth:`skill_tools` to export tool definitions for your agent
-        runtime, or :meth:`skill_context` to inject prompt skills into a
-        system prompt.
-        """
-        import warnings
-
-        warnings.warn(
-            "execute_skill() is deprecated. ContextSeek no longer executes skills. "
-            "Use skill_tools() or skill_context() to integrate with your agent runtime.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return {"warning": "execute_skill is deprecated", "ref": ref}
 
     def dream(
         self,

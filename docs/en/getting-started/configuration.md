@@ -279,5 +279,5 @@ DREAM_LLM_ENABLED=true
 ## Next steps
 
 - [Write & retrieve](../guides/write-and-retrieve.md) — how settings affect `add` / `retrieve`
-- [Settings reference](../reference/settings.md) — compact env index (TODO)
+- [Settings reference](../reference/settings.md) — compact env index
 - [Storage backends](../guides/storage.md) — OceanBase and tiered options

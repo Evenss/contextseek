@@ -9,7 +9,7 @@
 | RAG / 检索 | `RAGPlug` | `raw` → 演进 | `retrieve()` |
 | 记忆 | `PowerMemPlug` | `raw` → 演进 | `retrieve()` |
 | 执行轨迹 | `TracePlug` | `raw` → 演进 | `retrieve()` |
-| 技能 / 工具定义 | `HermesSkillImporter`、`MCPToolImporter`、`OpenAIFunctionImporter` | `skill` | `skill_tools()` / `execute_skill()` |
+| 技能 / 工具定义 | `HermesSkillImporter`、`MCPToolImporter`、`OpenAIFunctionImporter` | `skill` | `skill_tools()` / `skill_context()` |
 
 | 适用 | 不适用 |
 |------|--------|
@@ -217,7 +217,7 @@ ctx.plug(HermesSkillImporter("~/.hermes/skills"), scope="acme/bot/skills")
 | `OpenAIFunctionImporter` | OpenAI function / tool JSON |
 | `MCPToolImporter` | MCP `tools/list` 载荷 |
 
-导入后用 **`skill_tools()`**、**`skill_context()`**、**`execute_skill()`**（见 [MCP / HTTP / CLI](mcp-http-cli.md)）。也可由演进生成（`distill` → `stage=skill`）。
+导入后用 **`skill_tools()`**、**`skill_context()`**（见 [MCP / HTTP / CLI](mcp-http-cli.md)）。也可由演进生成（`distill` → `stage=skill`）。
 
 不提供 LangChain `BaseTool` 专用 Importer；请导出为 OpenAI/MCP JSON，或用 **bridges** 做运行时对接。
 
@@ -234,7 +234,7 @@ flowchart LR
   SK[skill-import] --> Store
   Manual[add] --> Store
   Store --> Ret[retrieve]
-  Store --> SkAPI[skill_tools / execute_skill]
+  Store --> SkAPI[skill_tools / skill_context]
 ```
 
 ```python

@@ -9,7 +9,7 @@ Built-in plugs (in `contextseek.plugs`):
 | RAG / retrieval | `RAGPlug` | `raw` → evolved | `retrieve()` |
 | Memory | `PowerMemPlug` | `raw` → evolved | `retrieve()` |
 | Execution trace | `TracePlug` | `raw` → evolved | `retrieve()` |
-| Skill / tool definitions | `HermesSkillImporter`, `MCPToolImporter`, `OpenAIFunctionImporter` | `skill` | `skill_tools()` / `execute_skill()` |
+| Skill / tool definitions | `HermesSkillImporter`, `MCPToolImporter`, `OpenAIFunctionImporter` | `skill` | `skill_tools()` / `skill_context()` |
 
 | In scope | Out of scope |
 |----------|--------------|
@@ -217,7 +217,7 @@ ctx.plug(HermesSkillImporter("~/.hermes/skills"), scope="acme/bot/skills")
 | `OpenAIFunctionImporter` | OpenAI function / tool JSON |
 | `MCPToolImporter` | MCP `tools/list` payloads |
 
-After import: **`skill_tools()`**, **`skill_context()`**, **`execute_skill()`** ([MCP, HTTP & CLI](mcp-http-cli.md)). Skills can also come from evolution (`distill` → `stage=skill`).
+After import: **`skill_tools()`**, **`skill_context()`** ([MCP, HTTP & CLI](mcp-http-cli.md)). Skills can also come from evolution (`distill` → `stage=skill`).
 
 LangChain tool objects are not shipped as importers; register tools via OpenAI JSON or MCP export, or use **bridges** for runtime wiring.
 
@@ -234,7 +234,7 @@ flowchart LR
   SK[skill-import] --> Store
   Manual[add] --> Store
   Store --> Ret[retrieve]
-  Store --> SkAPI[skill_tools / execute_skill]
+  Store --> SkAPI[skill_tools / skill_context]
 ```
 
 ```python

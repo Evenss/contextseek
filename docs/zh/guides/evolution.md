@@ -129,26 +129,6 @@ print(report)
 
 ---
 
-## `execute_skill()` — 执行蒸馏技能
-
-当条目晋升到 `Stage.skill` 后，即可直接执行：
-
-```python
-from contextseek.domain.stages import Stage
-
-skills = ctx.items(scope="acme/bot", stage=Stage.skill)
-for skill in skills:
-    result = ctx.execute_skill(skill.ref, scope="acme/bot",
-                               inputs={"query": "备份流程"})
-    print(result.output)
-```
-
-技能类型：`"prompt"`（返回 LLM 渲染字符串）、`"tool"`（返回工具调用描述）、`"mcp"`（返回 MCP 调用描述）。
-
-导出技能为 LLM 工具定义，见 [API 参考](../reference/api.md) 中的 `skill_tools()` 和 `skill_context()`。
-
----
-
 ## 推荐工作流
 
 ```

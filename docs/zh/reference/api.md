@@ -412,15 +412,6 @@ anthropic_client.messages.create(..., tools=tools)
 system_prompt = ctx.skill_context("acme/bot", query="客户支持")
 ```
 
-### `execute_skill(ref, *, scope, inputs=None) → SkillResult`
-
-执行已蒸馏到 `Stage.skill` 的条目，返回 `SkillResult`。
-
-```python
-result = ctx.execute_skill(skill_item.ref, scope="acme/bot", inputs={"query": "..."})
-print(result.output)
-```
-
 ---
 
 ## 版本标签
@@ -451,7 +442,6 @@ with canary_ctx.tag(actor={"experiment": "canary"}):
 | `ScopeTree` | `.nodes`（`ScopeNode` 树）；`.print()` 输出可视树 |
 | `ScopeStats` | `.item_count`、`.stage_distribution`、`.avg_confidence`、`.last_write` |
 | `ToolSpec` | `.to_openai()`、`.to_anthropic()` |
-| `SkillResult` | `.output`、`.skill_item`、`.inputs` |
 
 ---
 

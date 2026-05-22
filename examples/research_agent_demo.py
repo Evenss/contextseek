@@ -14,7 +14,7 @@ This script exercises all major ContextSeek capabilities:
   - Trace write → training data export
   - Strategy routing with canary rules
   - Context injection for LLM prompt building
-  - Skill execution framework
+  - Skill export (skill_tools / skill_context)
 
 Requirements: only the contextseek project itself (zero external dependencies).
 
@@ -37,7 +37,6 @@ from contextseek.config.strategies import (
     StrategyConfig,
     StrategyRouter,
 )
-from contextseek.domain.skill_executor import CallableSkillHandler, SkillExecutor
 from contextseek.evolution.engine import EvolutionEngine
 from contextseek.retrieval.orchestrator import RetrievalOrchestrator
 from contextseek.routing.resolver import ScopeResolver
@@ -53,14 +52,6 @@ CLEAN_ON_START = True
 # ============================================================
 # Mock functions
 # ============================================================
-
-def mock_skill_handler(body, args: dict) -> dict:
-    """Simulate a 'summarize' skill by truncating text."""
-    text = str(body)
-    max_len = args.get("max_length", 80)
-    summary = text[:max_len] + ("..." if len(text) > max_len else "")
-    return {"summary": summary, "original_length": len(text)}
-
 
 # ============================================================
 # Main Demo
@@ -277,16 +268,15 @@ def main() -> None:
         print("       expand(ids=[...]) when summaries are insufficient.")
 
         # ──────────────────────────────────────────────────────────────────
-        # Step 10: Skill Execution
-        # Demonstrates: SkillExecutor + CallableSkillHandler
+        # Step 10: Skill Export
+        # Demonstrates: skill_tools() and skill_context()
         # ──────────────────────────────────────────────────────────────────
-        print("\n[Step 10] Skill execution framework...")
-        executor = SkillExecutor()
-        executor.register("summarize", CallableSkillHandler(fn=mock_skill_handler))
+        print("\n[Step 10] Skill export...")
 
         # Create a skill ContextItem
         skill_item = ctx.add(
-            {"name": "summarize", "description": "Summarize text", "body": "The CAP theorem is a fundamental principle in distributed computing."},
+            {"name": "summarize", "skill_type": "tool", "description": "Summarize text to a given length",
+             "parameters": {"type": "object", "properties": {"text": {"type": "string"}, "max_length": {"type": "integer"}}}},
             scope=scope,
             source="distillation",
             source_type=SourceType.distillation,
@@ -294,8 +284,23 @@ def main() -> None:
         )
         print(f"  Skill item: {skill_item.id} stage={skill_item.stage.value} stability={skill_item.stability.value}")
 
-        result = executor.execute(skill_item, args={"max_length": 60})
-        print(f"  Execution result: {result}")
+        # Export as OpenAI tool definitions
+        tool_defs = ctx.skill_tools(scope, fmt="openai")
+        print(f"  skill_tools(fmt='openai') → {len(tool_defs)} tool(s)")
+        if tool_defs:
+            print(f"  First tool name: {tool_defs[0].get('function', {}).get('name', '?')}")
+
+        # Export as system prompt injection
+        ctx.add(
+            {"name": "research_style", "skill_type": "prompt", "description": "Research style guide",
+             "body": "Always cite sources and include confidence levels in your findings."},
+            scope=scope,
+            source="style_guide",
+            source_type=SourceType.distillation,
+            tags=["skill", "prompt"],
+        )
+        prompt_block = ctx.skill_context(scope)
+        print(f"  skill_context() → {len(prompt_block)} chars of system prompt")
 
         # ──────────────────────────────────────────────────────────────────
         # Step 11: Final Summary

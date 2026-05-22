@@ -1,5 +1,129 @@
 # 存储后端
 
-> **状态：** 待编写
+ContextSeek 与存储无关。根据部署阶段选择合适的后端；切换时只需修改配置，无需改动代码。
 
-计划包含：InMemory、File、OceanBase、分层存储及选型建议。
+---
+
+## InMemoryBackend
+
+未配置 `STORAGE_BACKEND` 时的默认选项。所有数据保存在内存字典中，进程退出后丢失。
+
+**适用场景：** 单元测试、快速原型验证、不需要持久化的单次请求流水线。
+
+```python
+from contextseek import ContextSeek
+
+ctx = ContextSeek()  # 默认使用 InMemory
+```
+
+或通过配置显式指定：
+
+```env
+STORAGE_BACKEND=memory
+```
+
+---
+
+## FileBackend
+
+将每条 `ContextItem` 作为 JSON 文件持久化到本地目录。底层依赖 [seekvfs](https://github.com/oceanbase/seekvfs)。
+
+**适用场景：** 本地开发、单进程 Agent、需要跨运行保留轨迹的 CI 流水线。
+
+```env
+STORAGE_BACKEND=file
+STORAGE_PATH=.seekcontext/store
+```
+
+目录在首次写入时自动创建。每个 scope 对应一个子目录，每条 item 是以 item ID 命名的单个 `.json` 文件。
+
+```python
+from contextseek import ContextSeek, ContextSeekSettings
+from contextseek.config.settings import StorageSettings
+
+ctx = ContextSeek.from_settings(
+    ContextSeekSettings(
+        storage=StorageSettings(backend="file", path="/data/my-agent")
+    )
+)
+```
+
+**Embedding 支持：** `FileBackend` 不支持向量召回，仅支持关键词匹配。需要语义检索时请切换到 OceanBase 并配置 Embedder。
+
+---
+
+## OceanBase 后端
+
+生产环境后端，支持 HNSW 近似向量搜索与全文检索（FTS），开箱即用混合召回。
+
+**适用场景：** 多进程部署、生产 Agent、需要向量召回或高吞吐写入的场景。
+
+**安装扩展：**
+
+```bash
+pip install contextseek[oceanbase]
+```
+
+**配置：**
+
+```env
+STORAGE_BACKEND=oceanbase
+STORAGE_OB_URI=mysql+pymysql://user:pass@host:2881/dbname
+STORAGE_OB_TABLE=context_items
+```
+
+配合 Embedding 提供方使用，`retrieve()` 会自动启用混合召回：
+
+```env
+EMBEDDING_PROVIDER=langchain
+EMBEDDING_CLASS_PATH=langchain_openai.OpenAIEmbeddings
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_DIMS=1536
+OPENAI_API_KEY=sk-...
+```
+
+检索编排器在检测到 Embedder 后自动激活 `vector` 召回路由。
+
+---
+
+## 分层存储（冷热分层）
+
+`TieredSeekVFSAdapter` 封装两个后端：热层存储近期/活跃数据，冷层存储归档内容。
+
+```env
+STORAGE_BACKEND=file
+STORAGE_PATH=.seekcontext/hot
+STORAGE_COLD_BACKEND=file
+STORAGE_COLD_PATH=.seekcontext/cold
+```
+
+写入始终进入热层。`compact()` 将已归档条目（超过 TTL 的 ephemeral 条目、软删除条目、低重要性陈旧条目）迁移至冷层。`retrieve()` 默认不读取冷层中的已删除条目（`include_deleted=False`）。
+
+> **注意：** 热层到冷层的自动迁移只在 `compact()` 时触发，条目不会自动迁移。
+
+---
+
+## 后端选型参考
+
+| 场景 | 推荐后端 |
+|---|---|
+| 单元测试 / CI | `InMemoryBackend` |
+| 本地开发、单进程 | `FileBackend` |
+| 语义 / 向量检索 | OceanBase |
+| 生产多进程部署 | OceanBase |
+| 长期归档 | 分层（File + File 或 OceanBase + File）|
+
+---
+
+## 向量召回的 Embedding 要求
+
+向量召回需要同时满足：
+
+1. 已配置 Embedding 提供方（`EMBEDDING_PROVIDER=langchain` + `EMBEDDING_CLASS_PATH`）
+2. 使用支持向量存储和查询的后端（OceanBase；`FileBackend` 仅回退到关键词匹配）
+
+若 `EMBEDDING_PROVIDER=none`（默认），`retrieve()` 仅使用短语和词项匹配。
+
+---
+
+[← 写入与检索](../write-and-retrieve.md) · [配置](../../getting-started/configuration.md) · [API 参考](../../reference/api.md)

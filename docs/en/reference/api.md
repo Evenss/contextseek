@@ -414,15 +414,6 @@ Retrieve top prompt-type skills and return them as a formatted context string, r
 system_prompt = ctx.skill_context("acme/bot", query="customer support")
 ```
 
-### `execute_skill(ref, *, scope, inputs=None) → SkillResult`
-
-Execute a `ContextItem` that has been distilled to `Stage.skill`. Returns a `SkillResult` with the output.
-
-```python
-result = ctx.execute_skill(skill_item.ref, scope="acme/bot", inputs={"query": "..."})
-print(result.output)
-```
-
 ---
 
 ## Versioning
@@ -453,7 +444,6 @@ with canary_ctx.tag(actor={"experiment": "canary"}):
 | `ScopeTree` | `.nodes` (`ScopeNode` tree); `.print()` renders an annotated directory tree |
 | `ScopeStats` | `.item_count`, `.stage_distribution`, `.avg_confidence`, `.last_write` |
 | `ToolSpec` | `.to_openai()`, `.to_anthropic()` |
-| `SkillResult` | `.output`, `.skill_item`, `.inputs` |
 
 ---
 

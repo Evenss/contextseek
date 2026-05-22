@@ -129,26 +129,6 @@ Use `overview()` before running `compact()` to decide if it's worth it, or to mo
 
 ---
 
-## `execute_skill()` — run a distilled skill
-
-When an item reaches `Stage.skill` it can be executed directly:
-
-```python
-from contextseek.domain.stages import Stage
-
-skills = ctx.items(scope="acme/bot", stage=Stage.skill)
-for skill in skills:
-    result = ctx.execute_skill(skill.ref, scope="acme/bot",
-                               inputs={"query": "backup procedure"})
-    print(result.output)
-```
-
-Skills can be of type `"prompt"` (returns an LLM-rendered string), `"tool"` (returns a tool call spec), or `"mcp"` (returns an MCP call spec).
-
-See `skill_tools()` and `skill_context()` in the [API reference](../reference/api.md) for exporting skills as LLM tool definitions.
-
----
-
 ## Recommended workflow
 
 ```

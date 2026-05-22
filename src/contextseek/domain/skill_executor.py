@@ -6,11 +6,9 @@ store + retrieve + export. Execution is handled by the external agent runtime.
 
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 from contextseek.domain.context_item import ContextItem
-from contextseek.domain.stages import Stage
 
 
 def _skill_name(skill: ContextItem) -> str:
@@ -192,33 +190,4 @@ class SkillExporter:
         return [self.to_anthropic_tool(it) for it in items]
 
 
-# ── Backward-compat stubs ─────────────────────────────────────────────────
-
-
-class SkillExecutor:
-    """Deprecated: use SkillExporter for format conversion.
-
-    ContextSeek no longer executes skills — execution is handled by the
-    external agent runtime. This class is kept for import compatibility only.
-    """
-
-    def execute(self, skill: ContextItem, *, args: dict[str, Any] | None = None) -> dict[str, Any]:
-        warnings.warn(
-            "SkillExecutor.execute() is deprecated. ContextSeek no longer executes skills. "
-            "Use SkillExporter to export skills to your agent runtime's format.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if skill.stage != Stage.skill:
-            msg = f"item {skill.id} is not a skill (stage={skill.stage})"
-            raise ValueError(msg)
-        return {"warning": "SkillExecutor is deprecated", "skill_id": skill.id}
-
-    def register(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn("SkillExecutor is deprecated.", DeprecationWarning, stacklevel=2)
-
-    def register_default(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn("SkillExecutor is deprecated.", DeprecationWarning, stacklevel=2)
-
-
-__all__ = ["SkillExporter", "SkillExecutor"]
+__all__ = ["SkillExporter"]
