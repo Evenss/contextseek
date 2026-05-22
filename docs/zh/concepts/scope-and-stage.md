@@ -36,6 +36,107 @@ Scope 是**路径字符串**，无强制 schema：
 
 ---
 
+## ScopeBuilder：规范化路径构建
+
+手写 scope 字符串容易出错。`ScopeBuilder` 提供链式 API，通过具名方法明确路径结构：
+
+```python
+from seekcontext import ScopeBuilder, ScopeTemplates
+
+# 链式构建，每个方法返回新实例（不可变，可安全分支）
+scope = (
+    ScopeBuilder()
+    .org("acme")
+    .project("payment-service")
+    .agent("refund-agent")
+    .build()
+)
+# → "acme/payment-service/refund-agent"
+
+# run / task / user 自动加类型前缀
+scope = (
+    ScopeBuilder()
+    .org("acme")
+    .project("payment-service")
+    .run("run_20260522_001")
+    .build()
+)
+# → "acme/payment-service/run/run_20260522_001"
+
+# 分支复用
+base = ScopeBuilder().org("acme").project("pay")
+scope_a = base.agent("refund").build()    # "acme/pay/refund"
+scope_b = base.agent("checkout").build()  # "acme/pay/checkout"
+
+# 从环境变量填充（缺失变量静默跳过）
+scope = ScopeBuilder.from_env(
+    prefix="acme",
+    env_vars={"project": "SERVICE_NAME", "run": "RUN_ID"},
+).build()
+```
+
+### 预置模板
+
+常见场景可用 `ScopeTemplates` 一步到位：
+
+```python
+from seekcontext import ScopeTemplates
+
+ScopeTemplates.org_knowledge("acme", "platform", "billing")
+# → "acme/platform/knowledge/billing"
+
+ScopeTemplates.agent_run("refund-agent", "r-001")
+# → "agent/refund-agent/run/r-001"
+
+ScopeTemplates.agent_run("refund-agent", "r-001", task_id="t-42")
+# → "agent/refund-agent/run/r-001/task/t-42"
+
+ScopeTemplates.user_space("u-99", "notes")
+# → "user/u-99/notes"
+
+ScopeTemplates.shared("payment-project", "knowledge")
+# → "shared/payment-project/knowledge"
+```
+
+### Scope 规范性检查
+
+开发期启用 `scope_lint=True`，`ctx.add()` 会在 scope 不规范时发出 `ScopeLintWarning`：
+
+```python
+from seekcontext import SeekContext
+from seekcontext.config.settings import SeekContextSettings
+
+ctx = SeekContext.from_settings(SeekContextSettings(scope_lint=True))
+# 以下会触发 ScopeLintWarning：
+ctx.add("...", scope="flat", source="test")          # 无 /，建议至少两层
+ctx.add("...", scope="Acme/Pay", source="test")      # 含大写字母
+ctx.add("...", scope="a/b/c/d/e/f/g", source="test") # 超过 6 层深度
+```
+
+检查规则见[配置项参考 — SCOPE_LINT](../reference/settings.md)。
+
+### Scope 分析
+
+已写入数据后，可通过 `ctx.scope_tree()` 和 `ctx.scope_stats()` 查看现状：
+
+```python
+# 打印 scope 层级树（含各 scope 的 item/knowledge/skill 计数）
+tree = ctx.scope_tree(root="acme")
+tree.print()
+# acme/
+#   payment-service/
+#     refund/   (142 items, 38 knowledge, 5 skills)
+#     checkout/ (891 items, 12 knowledge)
+
+# 单个 scope 的统计
+stats = ctx.scope_stats("acme/payment-service/refund")
+print(stats.item_count, stats.avg_confidence)
+```
+
+详见 [API 参考 — Scope 分析](../reference/api.md#scope-分析)。
+
+---
+
 ## Stage：成熟度流水线
 
 ```

@@ -162,6 +162,30 @@ Provider 的 API Key（`OPENAI_API_KEY`、`DASHSCOPE_API_KEY` 等）由 LangChai
 | `LIFECYCLE_AUTO_COMPACT` | `true` | 允许调度器触发压缩 |
 | `LIFECYCLE_COMPACT_MIN_ITEMS` | `5` | 触发压缩所需的最低条目数 |
 
+## Scope 规范性检查
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `SCOPE_LINT` | `false` | 调用 `ctx.add()` 时检查 scope 格式，不规范时发出 `ScopeLintWarning` |
+
+`SCOPE_LINT=true` 时触发的检查规则：
+
+| 场景 | 警告内容 |
+|------|----------|
+| scope 为空字符串 | 强烈建议使用层级 scope |
+| scope 无 `/`（完全扁平） | 建议至少两层层级以便隔离 |
+| scope 深度超过 6 层 | 层级过深，可能导致检索范围过窄 |
+| scope 中含空格或大写字母 | 建议使用小写 kebab-case |
+
+此检查默认关闭，建议仅在开发环境启用。也可在代码中直接配置：
+
+```python
+from seekcontext import SeekContext
+from seekcontext.config.settings import SeekContextSettings
+
+ctx = SeekContext.from_settings(SeekContextSettings(scope_lint=True))
+```
+
 ---
 
 ## 快速参考：最小生产 `.env`

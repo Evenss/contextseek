@@ -185,6 +185,67 @@ for spec in ctx.tools():
 
 ---
 
+## Scope analysis
+
+### `scope_tree(root=None) → ScopeTree`
+
+Return a hierarchical view of all scopes under `root`, with item/knowledge/skill counts per leaf scope. When `root=None`, the entire store is traversed.
+
+```python
+tree = ctx.scope_tree(root="acme")
+tree.print()
+# acme/
+#   payment-service/
+#     refund/              (142 items, 38 knowledge, 5 skills)
+#     run/run_20260522_001/ (891 items, 12 knowledge)
+#   shared/
+#     knowledge/           (203 items, 87 knowledge, 14 skills)
+```
+
+`ScopeTree` fields:
+
+| Field | Description |
+|-------|-------------|
+| `nodes` | Top-level `ScopeNode` dict, keyed by scope segment name |
+
+`ScopeNode` fields:
+
+| Field | Description |
+|-------|-------------|
+| `name` | Segment name at this level |
+| `full_path` | Full scope path string |
+| `item_count` | Total items in this scope |
+| `knowledge_count` | Items with `stage=knowledge` |
+| `skill_count` | Items with `stage=skill` |
+| `children` | Nested child nodes |
+
+> **Performance note:** `scope_tree()` enumerates all refs under the given prefix. For large scopes this may be slow — use it for debug sessions and dashboards, not hot paths.
+
+### `scope_stats(scope) → ScopeStats`
+
+Return aggregate statistics for a single scope (exact match, not prefix).
+
+```python
+stats = ctx.scope_stats("acme/payment-service/refund")
+print(f"items: {stats.item_count}")
+print(f"stage dist: {stats.stage_distribution}")  # {"raw": 5, "knowledge": 3, ...}
+print(f"avg confidence: {stats.avg_confidence:.2f}")
+print(f"last write: {stats.last_write}")
+```
+
+`ScopeStats` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `scope` | `str` | Scope path |
+| `item_count` | `int` | Total non-deleted items |
+| `stage_distribution` | `dict[str, int]` | Count per stage (string keys, e.g. `"raw"`, `"knowledge"`) |
+| `avg_confidence` | `float` | Mean provenance confidence across all items |
+| `last_write` | `datetime \| None` | `created_at` of the newest item; `None` if scope is empty |
+| `gap_count` | `int` | Detected unfilled knowledge gaps (reserved; populated by GapDetector) |
+
+---
+
 ## Provenance & Audit
 
 ### `upstream(ref, *, scope) → list[ContextItem]`
@@ -389,6 +450,8 @@ with canary_ctx.tag(actor={"experiment": "canary"}):
 | `DreamReport` | `.consolidation`, `.divergence`, `.total_dream_items` |
 | `EvolutionReport` | Stage counts + pending hints |
 | `EvidenceChain` | `.nodes`, `.overall_confidence`, `.conflicts`, `.critical_path` |
+| `ScopeTree` | `.nodes` (`ScopeNode` tree); `.print()` renders an annotated directory tree |
+| `ScopeStats` | `.item_count`, `.stage_distribution`, `.avg_confidence`, `.last_write` |
 | `ToolSpec` | `.to_openai()`, `.to_anthropic()` |
 | `SkillResult` | `.output`, `.skill_item`, `.inputs` |
 

@@ -345,6 +345,7 @@ class SeekContextSettings(BaseSettings):
     lifecycle: LifecycleSettings = Field(default_factory=LifecycleSettings)
     dream: DreamSettings = Field(default_factory=DreamSettings)
     prompts: PromptSettings = Field(default_factory=PromptSettings)
+    scope_lint: bool = Field(default=False, description="Emit ScopeLintWarning when scope strings look malformed.")
 
 
 # ---------------------------------------------------------------------------

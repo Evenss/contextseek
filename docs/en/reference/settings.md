@@ -162,6 +162,30 @@ See commented blocks in `.env.example` for all template keys and their placehold
 | `LIFECYCLE_AUTO_COMPACT` | `true` | Allow scheduler to trigger compaction |
 | `LIFECYCLE_COMPACT_MIN_ITEMS` | `5` | Minimum item count before compaction runs |
 
+## Scope lint
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SCOPE_LINT` | `false` | Check scope strings on every `ctx.add()` call and emit `ScopeLintWarning` for malformed scopes |
+
+When `SCOPE_LINT=true`, the following rules are checked:
+
+| Condition | Warning |
+|-----------|---------|
+| Empty scope string | Strongly recommend using a hierarchical scope |
+| No `/` separator (flat scope) | At least two levels recommended for isolation |
+| Depth > 6 levels | Too deep — may narrow retrieval to near-zero results |
+| Uppercase letters or spaces | Use lowercase kebab-case |
+
+This check is off by default; enable it during development only. You can also configure it in code:
+
+```python
+from seekcontext import SeekContext
+from seekcontext.config.settings import SeekContextSettings
+
+ctx = SeekContext.from_settings(SeekContextSettings(scope_lint=True))
+```
+
 ---
 
 ## Quick reference: minimal production `.env`

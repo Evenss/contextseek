@@ -16,6 +16,13 @@ from seekcontext.domain.results import (
 )
 from seekcontext.domain.stages import Stage, Stability
 from seekcontext.domain.tools import ToolSpec, default_tool_specs
+from seekcontext.scope import (
+    ScopeBuilder,
+    ScopeLintWarning,
+    ScopeStats,
+    ScopeTemplates,
+    ScopeTree,
+)
 
 __all__ = [
     "__version__",
@@ -27,6 +34,11 @@ __all__ = [
     "Provenance",
     "ResponseMeta",
     "RetrieveResponse",
+    "ScopeBuilder",
+    "ScopeLintWarning",
+    "ScopeStats",
+    "ScopeTemplates",
+    "ScopeTree",
     "SearchHit",
     "SeekContext",
     "SeekContextSettings",

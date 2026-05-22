@@ -241,6 +241,7 @@ class SeekContext:
     _llm_distill_enabled: bool = field(default=False, repr=False)
     _llm_feedback_enabled: bool = field(default=False, repr=False)
     _dream_llm_enabled: bool = field(default=False, repr=False)
+    _scope_lint: bool = field(default=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.adapter is None:
@@ -353,6 +354,12 @@ class SeekContext:
         # SourceType subclasses str, so use type(...) is str — not isinstance(..., str).
         if type(source_type) is str:
             source_type = SourceType(source_type)
+
+        if self._scope_lint:
+            from seekcontext.scope import ScopeLintWarning, _lint_scope
+
+            for msg in _lint_scope(scope):
+                warnings.warn(msg, ScopeLintWarning, stacklevel=2)
 
         if self.strategy is not None:
             from seekcontext.security.policy import apply_write_policy, source_allowed
@@ -1230,6 +1237,72 @@ class SeekContext:
 
         return result
 
+    def scope_tree(self, root: str | None = None) -> "ScopeTree":
+        """Return a hierarchical view of all scopes under *root*.
+
+        Args:
+            root: Optional scope prefix to restrict the tree (e.g. ``"acme"``).
+                  When ``None`` the entire store is included.
+
+        Returns:
+            A :class:`~seekcontext.scope.ScopeTree` whose ``.print()`` renders
+            an annotated directory tree with item/knowledge/skill counts.
+        """
+        from seekcontext.scope import ScopeTree, build_scope_tree
+
+        prefix = self.resolver.prefix_for(root) if root else "seekcontext://"
+        refs = self.adapter.ls(prefix)
+
+        scope_refs: dict[str, list[str]] = {}
+        for ref in refs:
+            try:
+                scope, _ = self.resolver.parse_ref(ref)
+            except ValueError:
+                continue
+            scope_refs.setdefault(scope, []).append(ref)
+
+        scope_items: dict[str, list] = {}
+        for scope in scope_refs:
+            scope_items[scope] = [item for _, item in self._list_items(scope)]
+
+        return build_scope_tree(scope_items, root)
+
+    def scope_stats(self, scope: str) -> "ScopeStats":
+        """Return aggregate statistics for a single scope.
+
+        Args:
+            scope: The scope to inspect (exact match, not a prefix).
+
+        Returns:
+            A :class:`~seekcontext.scope.ScopeStats` with item count, stage
+            distribution, average confidence, and last write time.
+        """
+        from seekcontext.scope import ScopeStats
+
+        items = [item for _, item in self._list_items(scope)]
+
+        stage_dist: dict[str, int] = {}
+        total_confidence = 0.0
+        last_write: "datetime | None" = None
+
+        for item in items:
+            key = item.stage.value if hasattr(item.stage, "value") else str(item.stage)
+            stage_dist[key] = stage_dist.get(key, 0) + 1
+            total_confidence += item.provenance.confidence if item.provenance else 0.0
+            created = item.created_at
+            if last_write is None or (created is not None and created > last_write):
+                last_write = created
+
+        avg_confidence = total_confidence / len(items) if items else 0.0
+
+        return ScopeStats(
+            scope=scope,
+            item_count=len(items),
+            stage_distribution=stage_dist,
+            avg_confidence=round(avg_confidence, 4),
+            last_write=last_write,
+        )
+
     def skills(
         self,
         scope: str,
@@ -1687,6 +1760,7 @@ class SeekContext:
             _llm_distill_enabled=llm_distill_enabled,
             _llm_feedback_enabled=llm_feedback_enabled,
             _dream_llm_enabled=dream_llm_enabled,
+            _scope_lint=bool(settings.scope_lint),
         )
 
     # ═══════════════════════════════════════════════════════════════════════

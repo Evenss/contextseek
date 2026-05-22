@@ -182,6 +182,73 @@ for spec in ctx.tools():
 
 ---
 
+## Scope 分析
+
+### `scope_tree(root=None) → ScopeTree`
+
+返回 `root` 前缀下所有 scope 的层级视图，含各叶节点的 item/knowledge/skill 计数。`root=None` 时遍历全部 scope。
+
+```python
+from seekcontext import ScopeBuilder
+
+tree = ctx.scope_tree(root="acme")
+tree.print()
+# acme/
+#   payment-service/
+#     refund/   (142 items, 38 knowledge, 5 skills)
+#     run/run_20260522_001/    (891 items, 12 knowledge)
+#   shared/
+#     knowledge/ (203 items, 87 knowledge, 14 skills)
+```
+
+`ScopeTree` 字段：
+
+| 字段 | 说明 |
+|------|------|
+| `nodes` | 顶层 `ScopeNode` 字典（按 scope 段名索引） |
+
+`ScopeNode` 字段：
+
+| 字段 | 说明 |
+|------|------|
+| `name` | 当前段名称 |
+| `full_path` | 完整 scope 路径 |
+| `item_count` | 该 scope 下的总条目数 |
+| `knowledge_count` | `stage=knowledge` 的条目数 |
+| `skill_count` | `stage=skill` 的条目数 |
+| `children` | 子节点字典 |
+
+> **注意：** `scope_tree()` 会枚举指定前缀下的所有 ref，scope 内条目数量大时有一定延迟，建议低频调用（如调试、监控面板）。
+
+### `scope_stats(scope) → ScopeStats`
+
+返回单个 scope 的聚合统计。
+
+| 参数 | 说明 |
+|------|------|
+| `scope` | 精确 scope 字符串（非前缀匹配） |
+
+```python
+stats = ctx.scope_stats("acme/payment-service/refund")
+print(f"条目数: {stats.item_count}")
+print(f"stage 分布: {stats.stage_distribution}")  # {"raw": 5, "knowledge": 3, ...}
+print(f"平均置信度: {stats.avg_confidence:.2f}")
+print(f"最后写入: {stats.last_write}")
+```
+
+`ScopeStats` 字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `scope` | `str` | scope 路径 |
+| `item_count` | `int` | 总条目数 |
+| `stage_distribution` | `dict[str, int]` | 各 stage（字符串键）的条目计数 |
+| `avg_confidence` | `float` | 所有条目的平均置信度 |
+| `last_write` | `datetime \| None` | 最新条目的 `created_at`；scope 为空时为 `None` |
+| `gap_count` | `int` | 已检测的未填充盲点数（预留，GapDetector 实现后填充） |
+
+---
+
 ## 溯源与审计
 
 ### `upstream(ref, *, scope) → list[ContextItem]`
@@ -381,6 +448,8 @@ with canary_ctx.tag(actor={"experiment": "canary"}):
 | `DreamReport` | `.consolidation`、`.divergence`、`.total_dream_items` |
 | `EvolutionReport` | 各 stage 计数 + 演化建议 |
 | `EvidenceChain` | `.nodes`、`.overall_confidence`、`.conflicts`、`.critical_path` |
+| `ScopeTree` | `.nodes`（`ScopeNode` 树）；`.print()` 输出可视树 |
+| `ScopeStats` | `.item_count`、`.stage_distribution`、`.avg_confidence`、`.last_write` |
 | `ToolSpec` | `.to_openai()`、`.to_anthropic()` |
 | `SkillResult` | `.output`、`.skill_item`、`.inputs` |
 

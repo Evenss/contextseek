@@ -13,7 +13,10 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
+pytest.importorskip("langchain_core", reason="langchain extra not installed")
+
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage  # noqa: E402
 
 from seekcontext.bridges.langchain.middleware import SeekContextMiddleware
 from seekcontext.domain.provenance import SourceType

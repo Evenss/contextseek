@@ -36,6 +36,107 @@ Scopes are **path strings** with no enforced schema:
 
 ---
 
+## ScopeBuilder: standardized path construction
+
+Hand-writing scope strings is error-prone. `ScopeBuilder` provides a chainable API where named methods make structure explicit:
+
+```python
+from seekcontext import ScopeBuilder, ScopeTemplates
+
+# Chainable build — each method returns a new instance (immutable, safe to branch)
+scope = (
+    ScopeBuilder()
+    .org("acme")
+    .project("payment-service")
+    .agent("refund-agent")
+    .build()
+)
+# → "acme/payment-service/refund-agent"
+
+# run / task / user automatically prepend a type label
+scope = (
+    ScopeBuilder()
+    .org("acme")
+    .project("payment-service")
+    .run("run_20260522_001")
+    .build()
+)
+# → "acme/payment-service/run/run_20260522_001"
+
+# Branch reuse — base is unaffected
+base = ScopeBuilder().org("acme").project("pay")
+scope_a = base.agent("refund").build()    # "acme/pay/refund"
+scope_b = base.agent("checkout").build()  # "acme/pay/checkout"
+
+# Build from environment variables (missing vars are silently skipped)
+scope = ScopeBuilder.from_env(
+    prefix="acme",
+    env_vars={"project": "SERVICE_NAME", "run": "RUN_ID"},
+).build()
+```
+
+### Preset templates
+
+For common patterns, `ScopeTemplates` gives you a one-liner:
+
+```python
+from seekcontext import ScopeTemplates
+
+ScopeTemplates.org_knowledge("acme", "platform", "billing")
+# → "acme/platform/knowledge/billing"
+
+ScopeTemplates.agent_run("refund-agent", "r-001")
+# → "agent/refund-agent/run/r-001"
+
+ScopeTemplates.agent_run("refund-agent", "r-001", task_id="t-42")
+# → "agent/refund-agent/run/r-001/task/t-42"
+
+ScopeTemplates.user_space("u-99", "notes")
+# → "user/u-99/notes"
+
+ScopeTemplates.shared("payment-project", "knowledge")
+# → "shared/payment-project/knowledge"
+```
+
+### Scope lint
+
+Enable `scope_lint=True` during development — `ctx.add()` will emit a `ScopeLintWarning` whenever a scope looks malformed:
+
+```python
+from seekcontext import SeekContext
+from seekcontext.config.settings import SeekContextSettings
+
+ctx = SeekContext.from_settings(SeekContextSettings(scope_lint=True))
+# These will trigger ScopeLintWarning:
+ctx.add("...", scope="flat", source="test")          # no separator, recommend 2+ levels
+ctx.add("...", scope="Acme/Pay", source="test")      # uppercase letters
+ctx.add("...", scope="a/b/c/d/e/f/g", source="test") # more than 6 levels deep
+```
+
+See [Settings reference — SCOPE_LINT](../reference/settings.md) for the full rule set.
+
+### Scope analysis
+
+After writing data, inspect the current structure with `ctx.scope_tree()` and `ctx.scope_stats()`:
+
+```python
+# Print a scope hierarchy tree (item / knowledge / skill counts per scope)
+tree = ctx.scope_tree(root="acme")
+tree.print()
+# acme/
+#   payment-service/
+#     refund/   (142 items, 38 knowledge, 5 skills)
+#     checkout/ (891 items, 12 knowledge)
+
+# Aggregate stats for one scope
+stats = ctx.scope_stats("acme/payment-service/refund")
+print(stats.item_count, stats.avg_confidence)
+```
+
+See [API reference — Scope analysis](../reference/api.md#scope-analysis) for full details.
+
+---
+
 ## Stage: maturity pipeline
 
 ```
