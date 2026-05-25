@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Callable
+from dataclasses import dataclass, field
+from typing import Any, Callable
 from typing import Protocol
 import re
 
@@ -28,6 +28,7 @@ class RecallQuery:
 
     route_name: str
     query: str
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class RecallRoute(Protocol):
@@ -333,3 +334,45 @@ def _content_for_score(item: dict[str, object]) -> str:
         str(item.get("tags", "")),
     ]
     return " ".join(parts).lower()
+
+
+class GeoRecallRoute:
+    """Spatial recall route that runs alongside phrase / vector routes in RRF fusion.
+
+    Activated when ``"geo"`` is listed in ``RETRIEVAL_RECALL_ROUTES``.
+    The ``geo_query`` is carried via ``RecallQuery.metadata`` and injected by
+    the orchestrator when ``build_queries`` is called.
+
+    Silently returns an empty list when the adapter does not support
+    ``geo_search`` (i.e. the backend is not geo-capable), so other routes
+    are unaffected.
+    """
+
+    def build_queries(
+        self,
+        query: str,
+        strategy: RetrievalStrategy,
+        *,
+        geo_query: Any | None = None,
+    ) -> list[RecallQuery]:
+        if geo_query is None or "geo" not in set(strategy.recall_routes):
+            return []
+        return [RecallQuery("geo", query, metadata={"geo_query": geo_query})]
+
+    def recall(
+        self,
+        adapter: SeekVFSAdapter,
+        *,
+        prefix: str,
+        recall_query: RecallQuery,
+        k: int,
+    ) -> list[dict[str, object]]:
+        geo_query = recall_query.metadata.get("geo_query")
+        if geo_query is None:
+            return []
+        if not hasattr(adapter, "geo_search"):
+            return []
+        try:
+            return adapter.geo_search(geo_query, prefix=prefix, k=k)  # type: ignore[union-attr]
+        except Exception:
+            return []
