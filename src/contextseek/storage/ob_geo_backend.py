@@ -1,13 +1,13 @@
 """OceanBase-backed GIS extension for contextseek.
 
 Extends :class:`OceanBaseBackend` with a separate geo index table
-(``contextseek_geo_index``) that stores spatial data alongside the
+(``contextseek_geo``) that stores spatial data alongside the
 existing main table.
 
 Architecture
 ------------
 - Main table (``contextseek_items``) – unchanged; all existing operations.
-- Geo table (``contextseek_geo_index``) – new; managed by this class.
+- Geo table (``contextseek_geo``) – new; managed by this class.
   - ``location POINT NOT NULL SRID 4326`` + SPATIAL INDEX (QuadTree).
   - ``geo_shape GEOMETRY NULL`` for polygons / linestrings (no spatial index).
   - Only ContextItems whose ``content["geo"]`` contains ``lat`` + ``lon``
@@ -81,14 +81,14 @@ class OceanBaseGeoBackend(OceanBaseBackend):
     """OceanBaseBackend with GIS support via a separate geo index table.
 
     Pass ``geo_table_name`` to customise the geo table name (defaults to
-    ``contextseek_geo_index``).  All other constructor parameters are
+    ``contextseek_geo``).  All other constructor parameters are
     forwarded to :class:`OceanBaseBackend`.
     """
 
     def __init__(
         self,
         *args: Any,
-        geo_table_name: str = "contextseek_geo_index",
+        geo_table_name: str = "contextseek_geo",
         distance_decay_km: float = 1.0,
         route_sample_interval_km: float = 0.5,
         **kwargs: Any,

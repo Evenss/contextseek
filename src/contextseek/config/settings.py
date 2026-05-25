@@ -301,7 +301,7 @@ class GeoSettings(BaseSettings):
     enabled: bool = False
     """Enable GIS support. When true, OceanBaseGeoBackend replaces OceanBaseBackend."""
 
-    geo_table_name: str = "contextseek_geo_index"
+    geo_table_name: str = "contextseek_geo"
     """Name of the spatial index table."""
 
     srid: int = 4326
