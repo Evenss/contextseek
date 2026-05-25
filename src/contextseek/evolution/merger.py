@@ -246,5 +246,8 @@ def _haversine_m(a: tuple[float, float], b: tuple[float, float]) -> float:
     lat2, lon2 = math.radians(b[0]), math.radians(b[1])
     d_lat = lat2 - lat1
     d_lon = lon2 - lon1
-    h = math.sin(d_lat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(d_lon / 2) ** 2
+    h = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin(d_lon / 2) ** 2
+    )
     return r * 2 * math.asin(math.sqrt(h))

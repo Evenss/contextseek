@@ -143,6 +143,7 @@ class Provenance:
         # Provenance.source_type is always a plain str regardless of what was passed.
         if isinstance(self.source_type, SourceType):
             object.__setattr__(self, "source_type", self.source_type.value)
+
     """Origin identifier (document URL / trace id / user id / tool name)."""
 
     confidence: float = 1.0

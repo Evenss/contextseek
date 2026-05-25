@@ -229,7 +229,6 @@ class SeekVFSStorageAdapter(GeoSearchMixin, VectorSearchMixin, SeekVFSAdapter):
             out.append(hit)
         return out
 
-
     def geo_search(
         self,
         geo_query: Any,
@@ -243,9 +242,7 @@ class SeekVFSStorageAdapter(GeoSearchMixin, VectorSearchMixin, SeekVFSAdapter):
         backend = self._resolve_backend(path_pattern)
         if backend is None or not hasattr(backend, "geo_search"):
             return []
-        raw: list[dict[str, Any]] = backend.geo_search(
-            geo_query, prefix=prefix, k=k
-        )
+        raw: list[dict[str, Any]] = backend.geo_search(geo_query, prefix=prefix, k=k)
         out: list[dict[str, Any]] = []
         for hit in raw:
             hit = dict(hit)
@@ -263,7 +260,9 @@ class SeekVFSStorageAdapter(GeoSearchMixin, VectorSearchMixin, SeekVFSAdapter):
             return False
         # Namespace column stores full URI — build it from the scope
         full_scope = _EXT_SCHEME + scope.strip("/")
-        return backend.is_point_within_zone(point, zone_type=zone_type, scope=full_scope)
+        return backend.is_point_within_zone(
+            point, zone_type=zone_type, scope=full_scope
+        )
 
 
 __all__ = ["SeekVFSStorageAdapter"]

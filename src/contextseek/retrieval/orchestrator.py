@@ -116,7 +116,9 @@ class RetrievalOrchestrator:
         if geo_query is not None:
             geo_route = GeoRecallRoute()
             for prefix in prefixes:
-                for geo_rq in geo_route.build_queries(query, strategy, geo_query=geo_query):
+                for geo_rq in geo_route.build_queries(
+                    query, strategy, geo_query=geo_query
+                ):
                     recall_paths.add(geo_rq.route_name)
                     for item in geo_route.recall(
                         self.adapter,

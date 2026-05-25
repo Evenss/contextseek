@@ -245,10 +245,10 @@ __all__ = [
 # (or contextseek.storage.ob_geo_backend, which already does so).
 from contextseek.domain.provenance import register_source_type as _reg  # noqa: E402
 
-_reg("sensor_fusion",   confidence=0.88)  # multi-sensor fusion (LIDAR / camera / radar)
-_reg("v2x_message",     confidence=0.80)  # vehicle-to-everything broadcast
+_reg("sensor_fusion", confidence=0.88)  # multi-sensor fusion (LIDAR / camera / radar)
+_reg("v2x_message", confidence=0.80)  # vehicle-to-everything broadcast
 _reg("hd_map_provider", confidence=0.95)  # HD map vendor data
-_reg("iot_telemetry",   confidence=0.92)  # IoT sensor readings
+_reg("iot_telemetry", confidence=0.92)  # IoT sensor readings
 _reg("fleet_telemetry", confidence=0.90)  # fleet management system reports
 
 del _reg
