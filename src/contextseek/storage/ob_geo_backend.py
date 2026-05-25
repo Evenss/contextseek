@@ -165,15 +165,16 @@ class OceanBaseGeoBackend(OceanBaseBackend):
     def _upsert_geo_index(self, ref: str, geo: GeoMetadata) -> None:
         assert self._obvector is not None
         namespace = _namespace_of(ref)
-        point_wkt = f"POINT({geo.lon} {geo.lat})"
+        point_wkt = f"POINT({geo.lat} {geo.lon})"
 
         if geo.geo_wkt:
             shape_expr = f"ST_GeomFromText('{_escape_wkt(geo.geo_wkt)}', 4326)"
         else:
             shape_expr = "NULL"
 
-        sql = text(f"""
-            REPLACE INTO `{self._geo_table_name}`
+        delete_sql = text(f"DELETE FROM `{self._geo_table_name}` WHERE ref = :ref")
+        insert_sql = text(f"""
+            INSERT INTO `{self._geo_table_name}`
                 (ref, namespace, location, geo_type, geo_shape)
             VALUES (
                 :ref,
@@ -186,8 +187,9 @@ class OceanBaseGeoBackend(OceanBaseBackend):
         try:
             with self._obvector.engine.connect() as conn:
                 with conn.begin():
+                    conn.execute(delete_sql, {"ref": ref})
                     conn.execute(
-                        sql,
+                        insert_sql,
                         {
                             "ref": ref,
                             "namespace": namespace,
@@ -291,17 +293,12 @@ class OceanBaseGeoBackend(OceanBaseBackend):
         prefix: str | None,
         k: int,
     ) -> list[dict[str, Any]]:
-        """Two-step radius search:
-        1. MBRContains with _ST_MakeEnvelope  → spatial index (QuadTree).
-        2. HAVING ST_Distance_Sphere <= radius → exact distance filter.
-        """
+        """Radius search using ST_Distance_Sphere for exact distance filtering."""
         assert self._obvector is not None
         assert geo_query.center is not None
 
         center = geo_query.center
-        radius_km = geo_query.radius_km
-        radius_m = radius_km * 1000.0
-        min_lon, min_lat, max_lon, max_lat = center.bounding_box(radius_km)
+        radius_m = geo_query.radius_km * 1000.0
         point_wkt = center.to_wkt()
 
         type_clause, type_params = _build_type_clause(geo_query.geo_type_filter)
@@ -316,10 +313,7 @@ class OceanBaseGeoBackend(OceanBaseBackend):
                     ST_GeomFromText(:point_wkt, 4326)
                 ) AS dist_m
             FROM `{self._geo_table_name}`
-            WHERE MBRContains(
-                _ST_MakeEnvelope(:min_lon, :min_lat, :max_lon, :max_lat, 4326),
-                location
-            )
+            WHERE 1=1
             {ns_clause}
             {type_clause}
             HAVING dist_m <= :radius_m
@@ -328,10 +322,6 @@ class OceanBaseGeoBackend(OceanBaseBackend):
         """)
         params: dict[str, Any] = {
             "point_wkt": point_wkt,
-            "min_lon": min_lon,
-            "min_lat": min_lat,
-            "max_lon": max_lon,
-            "max_lat": max_lat,
             "radius_m": radius_m,
             "k": k,
             **ns_params,

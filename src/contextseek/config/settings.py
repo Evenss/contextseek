@@ -153,6 +153,9 @@ class EmbeddingSettings(BaseSettings):
     dims: int = 0
     """Vector dimensions (required when provider != "none")."""
 
+    base_url: str = ""
+    """Optional base URL for compatible endpoints (e.g. EMBEDDING_BASE_URL in .env)."""
+
     kwargs: dict[str, Any] = Field(default_factory=dict)
     """Extra keyword arguments forwarded to the provider constructor."""
 
@@ -170,6 +173,9 @@ class LLMSettings(BaseSettings):
 
     model: str = ""
     """Model name passed to the provider constructor."""
+
+    base_url: str = ""
+    """Optional base URL for compatible endpoints (e.g. LLM_BASE_URL in .env)."""
 
     kwargs: dict[str, Any] = Field(default_factory=dict)
     """Extra keyword arguments forwarded to the provider constructor."""

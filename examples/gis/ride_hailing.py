@@ -13,19 +13,24 @@
 
 import os
 import time
+from dotenv import load_dotenv
+load_dotenv()
 
 # ── 快速配置，也可以通过 .env 文件注入 ────────────────────────────────────────
 os.environ.setdefault("STORAGE_BACKEND", "oceanbase")
-os.environ.setdefault("OB_DSN", "mysql+pymysql://root@127.0.0.1:2881/contextseek")
 os.environ.setdefault("GEO_ENABLED", "true")
+os.environ.setdefault("EMBEDDING_PROVIDER", "langchain")
+os.environ.setdefault("SUMMARIZER_PROVIDER", "llm")
+os.environ.setdefault("RETRIEVAL_RERANKER_MODE", "llm")
 os.environ.setdefault("GEO_DEFAULT_RADIUS_KM", "5.0")
 os.environ.setdefault("GEO_DISTANCE_DECAY_KM", "1.0")
+os.environ.setdefault("RETRIEVAL_RECALL_ROUTES", '["phrase","terms","vector","geo"]')
 
 import contextseek as cs
 from contextseek.domain.geo import GeoPoint, GeoMetadata, GeoQuery
 
 # ── 初始化客户端 ───────────────────────────────────────────────────────────────
-client = cs.ContextSeek()
+client = cs.ContextSeek.from_settings()
 
 SCOPE = "ride_hailing/demo"
 
@@ -66,7 +71,7 @@ drivers = [
 ]
 
 for d in drivers:
-    item = cs.ContextItem(
+    client.add(
         content={
             "driver_id": d["driver_id"],
             "name": d["name"],
@@ -77,10 +82,11 @@ for d in drivers:
         tags=["driver", d["status"]],
         stage=cs.Stage.extracted,
         stability=cs.Stability.ephemeral,  # 位置每分钟刷新，短生命周期
-        importance=0.8 if d["status"] == "available" else 0.5,
-        provenance=cs.Provenance(source_type=cs.SourceType.iot_telemetry, confidence=0.95),
+        source=d["name"],
+        source_type=cs.SourceType.external_api,
+        confidence=0.95,
+        check_conflicts=False,
     )
-    client.store(item, scope=SCOPE)
     print(f"  写入司机 {d['name']} @ ({d['lat']}, {d['lon']})")
 
 # =============================================================================
@@ -104,7 +110,7 @@ orders = [
 ]
 
 for o in orders:
-    item = cs.ContextItem(
+    client.add(
         content={
             "order_id": o["order_id"],
             "passenger": o["passenger"],
@@ -120,10 +126,11 @@ for o in orders:
         tags=["order", "pending"],
         stage=cs.Stage.extracted,
         stability=cs.Stability.transient,
-        importance=0.9,
-        provenance=cs.Provenance(source_type=cs.SourceType.api, confidence=1.0),
+        source=o["order_id"],
+        source_type=cs.SourceType.external_api,
+        confidence=1.0,
+        check_conflicts=False,
     )
-    client.store(item, scope=SCOPE)
     print(f"  写入订单 {o['order_id']} 乘客={o['passenger']} 起点=({o['pickup']['lat']}, {o['pickup']['lon']})")
 
 # =============================================================================
@@ -132,7 +139,7 @@ for o in orders:
 print("\n=== 写入热力区域 ===")
 
 # 北京金融街附近的一个矩形热力区
-zone_item = cs.ContextItem(
+client.add(
     content={
         "zone_id": "z_finance",
         "name": "金融街高峰需求区",
@@ -142,8 +149,8 @@ zone_item = cs.ContextItem(
             "lon": 116.3900,
             "geo_type": "zone",
             "geo_shape": (
-                "POLYGON((116.3850 39.9100, 116.3950 39.9100, "
-                "116.3950 39.9200, 116.3850 39.9200, 116.3850 39.9100))"
+                "POLYGON((39.9100 116.3850, 39.9100 116.3950, "
+                "39.9200 116.3950, 39.9200 116.3850, 39.9100 116.3850))"
             ),
         },
     },
@@ -151,10 +158,11 @@ zone_item = cs.ContextItem(
     tags=["zone", "high_demand"],
     stage=cs.Stage.knowledge,
     stability=cs.Stability.stable,
-    importance=1.0,
-    provenance=cs.Provenance(source_type=cs.SourceType.manual_input, confidence=0.9),
+    source="ops_team",
+    source_type=cs.SourceType.human_input,
+    confidence=0.9,
+    check_conflicts=False,
 )
-client.store(zone_item, scope=SCOPE)
 print("  写入热力区域：金融街高峰需求区")
 
 # =============================================================================
@@ -167,13 +175,15 @@ passenger_location = GeoPoint(lat=39.9090, lon=116.3985)
 geo_q = GeoQuery(
     center=passenger_location,
     radius_km=3.0,
-    geo_types=["driver"],
+    geo_type_filter=["driver"],
 )
 
 hits = client.retrieve(
     query="空闲司机",
     scope=SCOPE,
     k=5,
+    full=True,
+    tags=["driver"],
     geo_query=geo_q,
 )
 
@@ -181,7 +191,6 @@ print(f"  找到 {len(hits)} 位附近司机：")
 for h in hits:
     content = h.item.content if isinstance(h.item.content, dict) else {}
     geo = content.get("geo", {})
-    dist_m = getattr(h, "_geo_dist_m", None) or h.item.content.get("_geo_dist_m")
     print(
         f"    [{h.score:.3f}] {content.get('name','?')} "
         f"状态={content.get('status','?')} "
@@ -194,15 +203,17 @@ for h in hits:
 print("\n=== 区域调度：查找金融街区域内的订单 ===")
 
 polygon_wkt = (
-    "POLYGON((116.3850 39.9050, 116.4050 39.9050, "
-    "116.4050 39.9200, 116.3850 39.9200, 116.3850 39.9050))"
+    "POLYGON((39.9050 116.3850, 39.9050 116.4050, "
+    "39.9200 116.4050, 39.9200 116.3850, 39.9050 116.3850))"
 )
-geo_area = GeoQuery(polygon_wkt=polygon_wkt, geo_types=["order"])
+geo_area = GeoQuery(polygon_wkt=polygon_wkt, geo_type_filter=["order"])
 
 hits = client.retrieve(
     query="待派单订单",
     scope=SCOPE,
     k=10,
+    full=True,
+    tags=["order"],
     geo_query=geo_area,
 )
 
@@ -220,13 +231,15 @@ for h in hits:
 print("\n=== 路线召回：找途经东西长安街的司机 ===")
 
 # 东西长安街简化为一条 LineString
-route_wkt = "LINESTRING(116.3800 39.9050, 116.3900 39.9070, 116.4000 39.9080, 116.4100 39.9070)"
-geo_route = GeoQuery(route_wkt=route_wkt, route_radius_km=0.5, geo_types=["driver"])
+route_wkt = "LINESTRING(39.9050 116.3800, 39.9070 116.3900, 39.9080 116.4000, 39.9070 116.4100)"
+geo_route = GeoQuery(route_wkt=route_wkt, buffer_km=0.5, geo_type_filter=["driver"])
 
 hits = client.retrieve(
     query="沿途司机",
     scope=SCOPE,
     k=5,
+    full=True,
+    tags=["driver"],
     geo_query=geo_route,
 )
 

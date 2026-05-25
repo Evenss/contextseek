@@ -1,24 +1,31 @@
 """GIS 地图 POI 搜索示例 — OceanBase 后端。
 
 演示内容：
-1. 批量写入 POI（餐厅、加油站、地铁站等）
-2. 按关键词 + 地理位置做混合搜索（phrase + geo 双路召回）
+1. 批量写入 POI，LLM 自动生成 L0 摘要（Summarizer）
+2. 混合搜索：phrase + terms + vector + geo 四路召回 + LLM 重排
 3. 利用 geo_decay_score 对远距离 POI 降权
-4. 聚合附近 POI 到 knowledge 层（GeoAwareMerger）
+4. 向量语义搜索对比：关键词 vs 自然语言查询效果差异
+5. 聚合附近 POI 到 knowledge 层（GeoAwareMerger）
 
 运行前提：
 - STORAGE_BACKEND=oceanbase（OB >= 4.2.2）
 - GEO_ENABLED=true
+- LLM_PROVIDER=langchain（LLM 重排 + 摘要生成）
+- EMBEDDING_PROVIDER=langchain（向量召回）
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 os.environ.setdefault("STORAGE_BACKEND", "oceanbase")
-os.environ.setdefault("OB_DSN", "mysql+pymysql://root@127.0.0.1:2881/contextseek")
 os.environ.setdefault("GEO_ENABLED", "true")
+os.environ.setdefault("EMBEDDING_PROVIDER", "langchain")
+os.environ.setdefault("SUMMARIZER_PROVIDER", "llm")
+os.environ.setdefault("RETRIEVAL_RERANKER_MODE", "llm")
 os.environ.setdefault("GEO_DEFAULT_RADIUS_KM", "3.0")
 os.environ.setdefault("GEO_DISTANCE_DECAY_KM", "0.5")
-os.environ.setdefault("RETRIEVAL_RECALL_ROUTES", '["phrase","terms","geo"]')
+os.environ.setdefault("RETRIEVAL_RECALL_ROUTES", '["phrase","terms","vector","geo"]')
 
 import contextseek as cs
 from contextseek.domain.geo import GeoPoint, GeoQuery
@@ -26,7 +33,7 @@ from contextseek.policies.decay import geo_decay_score
 
 SCOPE = "map/poi_demo"
 
-client = cs.ContextSeek()
+client = cs.ContextSeek.from_settings()
 
 # =============================================================================
 # 1. 写入 POI 数据
@@ -50,7 +57,7 @@ pois = [
 ]
 
 for p in pois:
-    item = cs.ContextItem(
+    item = client.add(
         content={
             "name": p["name"],
             "category": p["category"],
@@ -61,11 +68,14 @@ for p in pois:
         tags=["poi", p["category"]],
         stage=cs.Stage.knowledge,
         stability=cs.Stability.stable,
-        importance=min(1.0, p["rating"] / 5.0),
-        provenance=cs.Provenance(source_type=cs.SourceType.hd_map_provider, confidence=0.92),
+        source="amap_poi",
+        source_type=cs.SourceType.external_api,
+        confidence=0.92,
+        check_conflicts=False,
     )
-    client.store(item, scope=SCOPE)
     print(f"  写入 POI: {p['name']} ({p['category']}) @ ({p['lat']}, {p['lon']})")
+    if item.abstract:
+        print(f"    ↳ L0: {item.abstract}")
 
 # =============================================================================
 # 2. 混合搜索：用户在西单附近搜索"烤鸭"
@@ -73,12 +83,13 @@ for p in pois:
 print("\n=== 混合搜索：烤鸭（西单附近） ===")
 
 user_pos = GeoPoint(lat=39.9110, lon=116.3720)
-geo_q = GeoQuery(center=user_pos, radius_km=5.0, geo_types=["poi"])
+geo_q = GeoQuery(center=user_pos, radius_km=5.0, geo_type_filter=["poi"])
 
 hits = client.retrieve(
     query="烤鸭 餐厅",
     scope=SCOPE,
     k=5,
+    full=True,
     geo_query=geo_q,
 )
 
@@ -103,12 +114,13 @@ for h in hits:
 # =============================================================================
 print("\n=== 附近加油站搜索 ===")
 
-geo_q2 = GeoQuery(center=user_pos, radius_km=3.0, geo_types=["poi"])
+geo_q2 = GeoQuery(center=user_pos, radius_km=3.0, geo_type_filter=["poi"])
 
 hits = client.retrieve(
     query="加油站",
     scope=SCOPE,
     k=5,
+    full=True,
     tags=["gas_station"],
     geo_query=geo_q2,
 )
@@ -122,20 +134,30 @@ for h in hits:
     )
 
 # =============================================================================
-# 4. 无地理约束的语义搜索对比
+# 4. 向量语义搜索对比：关键词 vs 自然语言
 # =============================================================================
-print("\n=== 对比：无地理约束的搜索（火锅） ===")
+print("\n=== 向量语义搜索对比 ===")
+print("  场景：用户不记得具体商家名，用自然语言描述意图")
 
-hits_no_geo = client.retrieve(
-    query="火锅 餐厅",
-    scope=SCOPE,
-    k=5,
+# 关键词查询（FTS 依赖词语精确匹配）
+kw_hits = client.retrieve(query="餐厅 吃饭 好吃", scope=SCOPE, k=3, full=True, geo_query=geo_q)
+# 自然语言查询（向量召回理解意图语义，LLM 重排综合相关性）
+nl_hits = client.retrieve(
+    query="附近找个口碑好的地方吃饭，最好评分高一点",
+    scope=SCOPE, k=3, full=True, geo_query=geo_q,
 )
 
-print(f"  语义搜索结果（共 {len(hits_no_geo)} 条）：")
-for h in hits_no_geo:
-    content = h.item.content if isinstance(h.item.content, dict) else {}
-    print(f"    [{h.score:.3f}] {content.get('name','?')} 类别={content.get('category','?')}")
+print(f"\n  关键词查询「餐厅 吃饭 好吃」：")
+for h in kw_hits:
+    c = h.item.content if isinstance(h.item.content, dict) else {}
+    print(f"    [{h.score:.3f}] {c.get('name','?')}  评分={c.get('rating','?')}")
+
+print(f"\n  自然语言查询「附近找个口碑好的地方吃饭，最好评分高一点」：")
+for h in nl_hits:
+    c = h.item.content if isinstance(h.item.content, dict) else {}
+    abstract = h.item.abstract or ""
+    print(f"    [{h.score:.3f}] {c.get('name','?')}  评分={c.get('rating','?')}"
+          + (f"\n           摘要: {abstract}" if abstract else ""))
 
 # =============================================================================
 # 5. POI 聚合演示（GeoAwareMerger）
@@ -145,8 +167,8 @@ print("\n=== POI 聚合：将西单周边相似 POI 合并为知识节点 ===")
 from contextseek.evolution.merger import GeoAwareMerger
 
 # 查询西单附近的 POI 作为待聚合候选
-geo_q3 = GeoQuery(center=GeoPoint(lat=39.9120, lon=116.3728), radius_km=0.3, geo_types=["poi"])
-candidates_hits = client.retrieve(query="购物 地铁 餐厅", scope=SCOPE, k=20, geo_query=geo_q3)
+geo_q3 = GeoQuery(center=GeoPoint(lat=39.9120, lon=116.3728), radius_km=0.3, geo_type_filter=["poi"])
+candidates_hits = client.retrieve(query="购物 地铁 餐厅", scope=SCOPE, k=20, full=True, geo_query=geo_q3)
 candidate_items = [h.item for h in candidates_hits]
 
 if len(candidate_items) >= 2:

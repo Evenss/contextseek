@@ -40,7 +40,6 @@ uv run python examples/advanced/research_agent.py  # 推荐：零外部依赖的
 | `poi_search.py` | 地图 POI 关键词 + 地理混合搜索 |
 | `ride_hailing.py` | 打车调度：司机 / 订单 / 热力区域 |
 | `autonomous_driving.py` | 智能驾驶：HD 地图 / ODD / 道路事件 |
-| `ev_swap_planning.py` | 电动车换电站规划与路线搜索 |
 
 ```bash
 GEO_ENABLED=true uv run python examples/gis/poi_search.py

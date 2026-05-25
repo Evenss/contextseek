@@ -28,8 +28,8 @@ class GeoPoint:
             raise ValueError(f"longitude out of range: {self.lon}")
 
     def to_wkt(self) -> str:
-        """Return WKT POINT string in OceanBase/MySQL lon-lat order."""
-        return f"POINT({self.lon} {self.lat})"
+        """Return WKT POINT string in lat-lon order required by OceanBase SRID 4326."""
+        return f"POINT({self.lat} {self.lon})"
 
     def bounding_box(self, radius_km: float) -> tuple[float, float, float, float]:
         """Return an approximate (min_lon, min_lat, max_lon, max_lat) bounding box.
@@ -114,11 +114,14 @@ class GeoMetadata:
         if lat is None or lon is None:
             return None
         try:
+            # Accept geo_type / geo_shape nested inside content["geo"] as well as top-level
+            geo_type = geo.get("geo_type") or content.get("geo_type", "poi")
+            geo_wkt = content.get("geo_wkt") or geo.get("geo_shape")
             return cls(
                 lat=float(lat),
                 lon=float(lon),
-                geo_type=str(content.get("geo_type", "poi")),
-                geo_wkt=content.get("geo_wkt"),
+                geo_type=str(geo_type),
+                geo_wkt=geo_wkt,
                 address=content.get("address"),
                 region_code=content.get("region_code"),
                 altitude_m=content.get("altitude_m"),
@@ -176,7 +179,7 @@ class GeoQuery:
 def _parse_linestring_points(wkt: str) -> list[GeoPoint]:
     """Extract all vertices from a WKT LINESTRING.
 
-    Format: ``LINESTRING(lon1 lat1, lon2 lat2, ...)``
+    Format: ``LINESTRING(lat1 lon1, lat2 lon2, ...)`` (SRID 4326 axis order).
     """
     body = re.search(r"LINESTRING\s*\(([^)]+)\)", wkt, re.I)
     if body is None:
@@ -186,7 +189,7 @@ def _parse_linestring_points(wkt: str) -> list[GeoPoint]:
         parts = pair.strip().split()
         if len(parts) >= 2:
             try:
-                points.append(GeoPoint(lat=float(parts[1]), lon=float(parts[0])))
+                points.append(GeoPoint(lat=float(parts[0]), lon=float(parts[1])))
             except (ValueError, IndexError):
                 continue
     return points

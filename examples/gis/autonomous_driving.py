@@ -14,19 +14,23 @@
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 os.environ.setdefault("STORAGE_BACKEND", "oceanbase")
-os.environ.setdefault("OB_DSN", "mysql+pymysql://root@127.0.0.1:2881/contextseek")
 os.environ.setdefault("GEO_ENABLED", "true")
+os.environ.setdefault("EMBEDDING_PROVIDER", "langchain")
+os.environ.setdefault("SUMMARIZER_PROVIDER", "llm")
+os.environ.setdefault("RETRIEVAL_RERANKER_MODE", "llm")
 os.environ.setdefault("GEO_DEFAULT_RADIUS_KM", "0.5")
 os.environ.setdefault("GEO_DISTANCE_DECAY_KM", "0.1")
-os.environ.setdefault("RETRIEVAL_RECALL_ROUTES", '["phrase","vector","geo"]')
+os.environ.setdefault("RETRIEVAL_RECALL_ROUTES", '["phrase","terms","vector","geo"]')
 
 import contextseek as cs
 from contextseek.domain.geo import GeoPoint, GeoQuery
 
 SCOPE = "autonomous/demo"
-client = cs.ContextSeek()
+client = cs.ContextSeek.from_settings()
 
 # =============================================================================
 # 1. 写入 ODD 区域（限定自动驾驶可运营的地理范围）
@@ -34,7 +38,7 @@ client = cs.ContextSeek()
 print("=== 写入 ODD 区域 ===")
 
 # 某园区内部的 ODD 区域（多边形）
-odd_item = cs.ContextItem(
+client.add(
     content={
         "odd_id": "odd_campus_a",
         "name": "智驾园区A区ODD",
@@ -45,8 +49,8 @@ odd_item = cs.ContextItem(
             "lon": 116.3000,
             "geo_type": "odd_zone",
             "geo_shape": (
-                "POLYGON((116.2950 39.9750, 116.3050 39.9750, "
-                "116.3050 39.9850, 116.2950 39.9850, 116.2950 39.9750))"
+                "POLYGON((39.9750 116.2950, 39.9750 116.3050, "
+                "39.9850 116.3050, 39.9850 116.2950, 39.9750 116.2950))"
             ),
         },
     },
@@ -54,10 +58,11 @@ odd_item = cs.ContextItem(
     tags=["odd_zone", "campus"],
     stage=cs.Stage.knowledge,
     stability=cs.Stability.permanent,
-    importance=1.0,
-    provenance=cs.Provenance(source_type=cs.SourceType.hd_map_provider, confidence=0.99),
+    source="hd_map",
+    source_type=cs.SourceType.external_api,
+    confidence=0.99,
+    check_conflicts=False,
 )
-client.store(odd_item, scope=SCOPE)
 print("  写入 ODD 区域：智驾园区A区")
 
 # =============================================================================
@@ -76,7 +81,7 @@ hd_features = [
             "lat": 39.9800,
             "lon": 116.3000,
             "geo_type": "hd_road",
-            "geo_shape": "LINESTRING(116.2950 39.9800, 116.3050 39.9800)",
+            "geo_shape": "LINESTRING(39.9800 116.2950, 39.9800 116.3050)",
         },
     },
     {
@@ -95,22 +100,23 @@ hd_features = [
             "lat": 39.9799,
             "lon": 116.2980,
             "geo_type": "lane",
-            "geo_shape": "LINESTRING(116.2950 39.9799, 116.3000 39.9799)",
+            "geo_shape": "LINESTRING(39.9799 116.2950, 39.9799 116.3000)",
         },
     },
 ]
 
 for f in hd_features:
-    item = cs.ContextItem(
+    client.add(
         content=f,
         scope=SCOPE,
         tags=["hd_map", f["type"]],
         stage=cs.Stage.knowledge,
         stability=cs.Stability.stable,
-        importance=0.95,
-        provenance=cs.Provenance(source_type=cs.SourceType.hd_map_provider, confidence=0.98),
+        source=f["name"],
+        source_type=cs.SourceType.external_api,
+        confidence=0.98,
+        check_conflicts=False,
     )
-    client.store(item, scope=SCOPE)
     print(f"  写入要素: {f['name']} ({f['type']})")
 
 # =============================================================================
@@ -144,20 +150,17 @@ events = [
 
 event_items = []
 for e in events:
-    item = cs.ContextItem(
+    item = client.add(
         content=e,
         scope=SCOPE,
         tags=["road_event", e["type"], f"severity_{e['severity']}"],
         stage=cs.Stage.extracted,
         stability=cs.Stability.ephemeral,  # 道路事件短暂有效
-        importance={"high": 1.0, "medium": 0.7, "low": 0.4}[e["severity"]],
-        provenance=cs.Provenance(
-            source_type=cs.SourceType.v2x_message,
-            confidence=0.85,
-            context=f"V2X event {e['event_id']}",
-        ),
+        source=e["event_id"],
+        source_type=cs.SourceType.external_api,
+        confidence=0.85,
+        check_conflicts=False,
     )
-    client.store(item, scope=SCOPE)
     event_items.append(item)
     print(f"  写入事件: {e['description']} ({e['type']})")
 
@@ -168,7 +171,7 @@ print("\n=== 写入自动驾驶决策点 ===")
 
 vehicle_pos = GeoPoint(lat=39.9801, lon=116.2985)
 
-wp_item = cs.ContextItem(
+client.add(
     content={
         "waypoint_id": "wp_current",
         "vehicle_id": "ego_001",
@@ -181,14 +184,11 @@ wp_item = cs.ContextItem(
     tags=["waypoint", "ego_vehicle"],
     stage=cs.Stage.raw,
     stability=cs.Stability.ephemeral,
-    importance=1.0,
-    provenance=cs.Provenance(
-        source_type=cs.SourceType.sensor_fusion,
-        confidence=0.97,
-        context="IMU+GPS fusion",
-    ),
+    source="ego_vehicle",
+    source_type=cs.SourceType.agent_inference,
+    confidence=0.97,
+    check_conflicts=False,
 )
-client.store(wp_item, scope=SCOPE)
 print(f"  写入车辆位置 @ ({vehicle_pos.lat}, {vehicle_pos.lon})")
 
 # =============================================================================
@@ -215,6 +215,7 @@ hits = client.retrieve(
     query="道路施工 限速 交叉口 车道",
     scope=SCOPE,
     k=8,
+    full=True,
     geo_query=geo_ahead,
 )
 
@@ -232,12 +233,13 @@ for h in hits:
 # =============================================================================
 print("\n=== 高危事件召回 ===")
 
-geo_local = GeoQuery(center=vehicle_pos, radius_km=0.5, geo_types=["road_event"])
+geo_local = GeoQuery(center=vehicle_pos, radius_km=0.5, geo_type_filter=["road_event"])
 
 hits = client.retrieve(
     query="施工 事故 限速",
     scope=SCOPE,
     k=5,
+    full=True,
     tags=["road_event"],
     geo_query=geo_local,
 )
@@ -262,7 +264,7 @@ high_severity_events = [
 
 if high_severity_events:
     source_event = high_severity_events[0].item
-    decision = cs.ContextItem(
+    decision = client.add(
         content={
             "decision_id": "dec_001",
             "action": "lane_change_required",
@@ -274,15 +276,12 @@ if high_severity_events:
         tags=["decision", "lane_change"],
         stage=cs.Stage.knowledge,
         stability=cs.Stability.ephemeral,
-        importance=1.0,
+        source=f"decision_{source_event.id}",
+        source_type=cs.SourceType.agent_inference,
+        confidence=0.91,
         links=[cs.Link(target_id=source_event.id, relation=cs.LinkType.derived_from)],
-        provenance=cs.Provenance(
-            source_type=cs.SourceType.inference,
-            confidence=0.91,
-            context=f"Derived from event {source_event.id}",
-        ),
+        check_conflicts=False,
     )
-    client.store(decision, scope=SCOPE)
     print(f"  生成决策建议: {decision.content['recommendation']}")
     print(f"  证据来源: {source_event.content.get('description','?')}")
     print(f"  链接关系: {cs.LinkType.derived_from.value}")
