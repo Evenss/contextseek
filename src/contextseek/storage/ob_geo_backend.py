@@ -116,9 +116,6 @@ class OceanBaseGeoBackend(OceanBaseBackend):
         if row is None:
             return
         version_str = str(row[0])
-        # seekdb 复用 OceanBase 客户端，VERSION() 形如
-        # "5.7.25-OceanBase seekdb-v1.3.0.0" — 必须先于 OceanBase 正则匹配，
-        # 否则会被误识别为 OB v1.3.0 触发下限报错。
         if re.search(r"seekdb", version_str, re.I):
             logger.info("GIS: detected seekdb backend (%s); skipping OceanBase version check", version_str)
             return
