@@ -117,7 +117,10 @@ class OceanBaseGeoBackend(OceanBaseBackend):
             return
         version_str = str(row[0])
         if re.search(r"seekdb", version_str, re.I):
-            logger.info("GIS: detected seekdb backend (%s); skipping OceanBase version check", version_str)
+            logger.info(
+                "GIS: detected seekdb backend (%s); skipping OceanBase version check",
+                version_str,
+            )
             return
         m = re.search(r"OceanBase[^-]*-v(\d+)\.(\d+)\.(\d+)", version_str, re.I)
         if not m:
