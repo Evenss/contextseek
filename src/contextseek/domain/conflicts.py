@@ -139,7 +139,10 @@ def detect_conflicts(
         # 2.5 Collect LLM-band candidates for deferred processing.
         # They are sorted by overlap descending after the first pass so the
         # budget is spent on the highest-similarity pairs first.
-        if llm_judge is not None and llm_min_similarity <= overlap <= llm_max_similarity:
+        if (
+            llm_judge is not None
+            and llm_min_similarity <= overlap <= llm_max_similarity
+        ):
             band_candidates.append((overlap, existing))
             continue
 
@@ -182,9 +185,7 @@ def detect_conflicts(
             continue
         remaining_llm_budget -= 1
         try:
-            judged = llm_judge(
-                new_item.content_text, existing.content_text, overlap
-            )
+            judged = llm_judge(new_item.content_text, existing.content_text, overlap)
         except Exception:
             judged = None
         if judged == ConflictType.near_duplicate:

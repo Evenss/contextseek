@@ -30,7 +30,9 @@ def _json_default(o: Any) -> Any:
     raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
 
 
-class SeekVFSStorageAdapter(HashIndexMixin, GeoSearchMixin, VectorSearchMixin, SeekVFSAdapter):
+class SeekVFSStorageAdapter(
+    HashIndexMixin, GeoSearchMixin, VectorSearchMixin, SeekVFSAdapter
+):
     """Bridge `seekvfs.VFS` to contextseek's storage protocol.
 
     Translates contextseek's `contextseek://` refs to the VFS's own scheme

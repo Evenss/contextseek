@@ -86,9 +86,9 @@ class TestLLMJudgeBudget:
         LLM on hi (0.75) and mid (0.583), not lo (0.5).
         """
         new = _make_item("a1 a2 a3 a4 a5 a6 a7 a8 a9 a10")
-        hi = _make_item("a1 a2 a3 a4 a5 a6 a7 a8 a9 h1 h2")   # J=9/12=0.750
-        mid = _make_item("a1 a2 a3 a4 a5 a6 a7 m1 m2")         # J=7/12≈0.583
-        lo = _make_item("a1 a2 a3 a4 a5 a6 l1 l2")             # J=6/12=0.500
+        hi = _make_item("a1 a2 a3 a4 a5 a6 a7 a8 a9 h1 h2")  # J=9/12=0.750
+        mid = _make_item("a1 a2 a3 a4 a5 a6 a7 m1 m2")  # J=7/12≈0.583
+        lo = _make_item("a1 a2 a3 a4 a5 a6 l1 l2")  # J=6/12=0.500
 
         judged_contents: list[str] = []
 
