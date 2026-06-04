@@ -36,7 +36,6 @@ from contextseek.storage._backend_utils import (
     _merge_hoisted,
     _namespace_of,
     _parse_updated_at,
-    _parse_vector,
     _prefix_from_pattern,
     _serialize_dt,
 )
