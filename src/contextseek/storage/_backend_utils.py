@@ -12,7 +12,16 @@ from datetime import UTC, datetime
 from typing import Any
 
 _HOISTED: frozenset[str] = frozenset(
-    {"embedding", "content", "abstract", "summary", "scope", "stage", "searchable", "hash"}
+    {
+        "embedding",
+        "content",
+        "abstract",
+        "summary",
+        "scope",
+        "stage",
+        "searchable",
+        "hash",
+    }
 )
 """Fields stored in dedicated columns/metadata keys; stripped from payload_json on write."""
 

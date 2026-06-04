@@ -398,10 +398,27 @@ class OceanBaseBackend(SyncCapableMixin, BackendProtocol):
             row = conn.execute(stmt).fetchone()
         if row is None:
             raise NotFoundError(path)
-        payload_json, content, abstract, summary, abstract_embedding, scope, stage, searchable, hash_val = row
+        (
+            payload_json,
+            content,
+            abstract,
+            summary,
+            abstract_embedding,
+            scope,
+            stage,
+            searchable,
+            hash_val,
+        ) = row
         payload_dict = _merge_hoisted(
-            payload_json, content, abstract, summary, abstract_embedding,
-            scope=scope, stage=stage, searchable=searchable, hash_val=hash_val,
+            payload_json,
+            content,
+            abstract,
+            summary,
+            abstract_embedding,
+            scope=scope,
+            stage=stage,
+            searchable=searchable,
+            hash_val=hash_val,
         )
         return FileData(
             content=json.dumps(payload_dict, ensure_ascii=False).encode("utf-8"),
@@ -432,10 +449,28 @@ class OceanBaseBackend(SyncCapableMixin, BackendProtocol):
             rows = conn.execute(stmt).fetchall()
         out: dict[str, FileData] = {}
         for row in rows:
-            ref, payload_json, content, abstract, summary, abstract_embedding, scope, stage, searchable, hash_val = row
+            (
+                ref,
+                payload_json,
+                content,
+                abstract,
+                summary,
+                abstract_embedding,
+                scope,
+                stage,
+                searchable,
+                hash_val,
+            ) = row
             payload_dict = _merge_hoisted(
-                payload_json, content, abstract, summary, abstract_embedding,
-                scope=scope, stage=stage, searchable=searchable, hash_val=hash_val,
+                payload_json,
+                content,
+                abstract,
+                summary,
+                abstract_embedding,
+                scope=scope,
+                stage=stage,
+                searchable=searchable,
+                hash_val=hash_val,
             )
             out[ref] = FileData(
                 content=json.dumps(payload_dict, ensure_ascii=False).encode("utf-8"),
@@ -560,7 +595,9 @@ class OceanBaseBackend(SyncCapableMixin, BackendProtocol):
 
         table = self._table
         ns_cond = table.c["namespace"].like(f"{prefix}%") if prefix else None
-        searchable_cond = or_(table.c["searchable"] == 1, table.c["searchable"].is_(None))
+        searchable_cond = or_(
+            table.c["searchable"] == 1, table.c["searchable"].is_(None)
+        )
 
         fts_where_expr = text(
             "MATCH(fulltext_content) AGAINST(:q_where IN NATURAL LANGUAGE MODE)"
@@ -569,31 +606,8 @@ class OceanBaseBackend(SyncCapableMixin, BackendProtocol):
             "MATCH(fulltext_content) AGAINST(:q_score IN NATURAL LANGUAGE MODE) AS fts_score"
         ).bindparams(bindparam("q_score", query))
 
-        stmt = select(
-            table.c["id"],
-            table.c["ref"],
-            table.c["payload_json"],
-            table.c["content"],
-            table.c["abstract"],
-            table.c["summary"],
-            table.c["abstract_embedding"],
-            table.c["scope"],
-            table.c["stage"],
-            table.c["searchable"],
-            table.c["hash"],
-            fts_score_expr,
-        ).where(fts_where_expr).where(searchable_cond)
-        if ns_cond is not None:
-            stmt = stmt.where(ns_cond)
-        stmt = stmt.order_by(text("fts_score DESC")).limit(k)
-
-        try:
-            with self._obvector.engine.connect() as conn:
-                with conn.begin():
-                    rows = [dict(r._mapping) for r in conn.execute(stmt)]
-        except Exception as exc:
-            logger.warning(f"FTS failed, fallback to LIKE: {exc}")
-            like_stmt = select(
+        stmt = (
+            select(
                 table.c["id"],
                 table.c["ref"],
                 table.c["payload_json"],
@@ -605,11 +619,42 @@ class OceanBaseBackend(SyncCapableMixin, BackendProtocol):
                 table.c["stage"],
                 table.c["searchable"],
                 table.c["hash"],
-            ).where(
-                table.c["fulltext_content"].like(
-                    f"%{_escape_like(query)}%", escape="\\"
+                fts_score_expr,
+            )
+            .where(fts_where_expr)
+            .where(searchable_cond)
+        )
+        if ns_cond is not None:
+            stmt = stmt.where(ns_cond)
+        stmt = stmt.order_by(text("fts_score DESC")).limit(k)
+
+        try:
+            with self._obvector.engine.connect() as conn:
+                with conn.begin():
+                    rows = [dict(r._mapping) for r in conn.execute(stmt)]
+        except Exception as exc:
+            logger.warning(f"FTS failed, fallback to LIKE: {exc}")
+            like_stmt = (
+                select(
+                    table.c["id"],
+                    table.c["ref"],
+                    table.c["payload_json"],
+                    table.c["content"],
+                    table.c["abstract"],
+                    table.c["summary"],
+                    table.c["abstract_embedding"],
+                    table.c["scope"],
+                    table.c["stage"],
+                    table.c["searchable"],
+                    table.c["hash"],
                 )
-            ).where(searchable_cond)
+                .where(
+                    table.c["fulltext_content"].like(
+                        f"%{_escape_like(query)}%", escape="\\"
+                    )
+                )
+                .where(searchable_cond)
+            )
             if ns_cond is not None:
                 like_stmt = like_stmt.where(ns_cond)
             like_stmt = like_stmt.limit(k)
@@ -934,7 +979,9 @@ class OceanBaseBackend(SyncCapableMixin, BackendProtocol):
         try:
             with self._obvector.engine.connect() as conn:
                 row = conn.execute(
-                    text("SELECT v FROM contextseek_meta WHERE k = :k").bindparams(k=key)
+                    text("SELECT v FROM contextseek_meta WHERE k = :k").bindparams(
+                        k=key
+                    )
                 ).fetchone()
             return str(row[0]) if row else None
         except Exception as exc:

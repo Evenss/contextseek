@@ -174,7 +174,9 @@ class SeekDBBackend(SyncCapableMixin, BackendProtocol):
                 "content": text_content,
                 "abstract": abstract,
                 "summary": summary,
-                "payload_json": json.dumps(_json_safe(payload_slim), ensure_ascii=False),
+                "payload_json": json.dumps(
+                    _json_safe(payload_slim), ensure_ascii=False
+                ),
                 "scope": str(payload.get("scope") or ""),
                 "stage": str(payload.get("stage") or ""),
                 "searchable": 1 if payload.get("searchable", True) else 0,
@@ -453,7 +455,7 @@ class SeekDBBackend(SyncCapableMixin, BackendProtocol):
             bare = self._bare_path(id_)
             if not bare.startswith(prefix):
                 continue
-            rel = bare[len(prefix):]
+            rel = bare[len(prefix) :]
             if not recursive and "/" in rel:
                 continue
             if pattern is not None and not fnmatch.fnmatch(rel, pattern):
@@ -553,7 +555,10 @@ class SeekDBBackend(SyncCapableMixin, BackendProtocol):
         return base
 
     def _hybrid_search(
-        self, query_embedding: list[float], query: str, n: int,
+        self,
+        query_embedding: list[float],
+        query: str,
+        n: int,
         scope_key: str | None = None,
     ) -> Any:
         """Run hybrid vector+FTS search using pyseekdb's native hybrid_search."""
@@ -597,9 +602,7 @@ class SeekDBBackend(SyncCapableMixin, BackendProtocol):
         except Exception:
             return {"ids": [[]], "metadatas": [[]], "distances": [[]]}
 
-    def _fts_only_search(
-        self, query: str, n: int, scope_key: str | None = None
-    ) -> Any:
+    def _fts_only_search(self, query: str, n: int, scope_key: str | None = None) -> Any:
         where = self._build_where(scope_key)
         try:
             return self._collection.query(
