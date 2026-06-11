@@ -268,7 +268,9 @@ def _update_env_file(updates: dict[str, str]) -> None:
         prefix = f"{key}="
         new_line = f"{key}={value}\n"
         for i, line in enumerate(lines):
-            if line.lstrip().startswith(prefix) or line.lstrip().startswith(f"# {prefix}"):
+            if line.lstrip().startswith(prefix) or line.lstrip().startswith(
+                f"# {prefix}"
+            ):
                 if line.lstrip().startswith(prefix):
                     lines[i] = new_line
                     return lines
@@ -284,7 +286,7 @@ def _update_env_file(updates: dict[str, str]) -> None:
         for line in lines:
             stripped = line.lstrip()
             if stripped.startswith(prefix):
-                raw = stripped[len(prefix):].strip().strip('"').strip("'")
+                raw = stripped[len(prefix) :].strip().strip('"').strip("'")
                 try:
                     existing = _json.loads(raw)
                 except Exception:
@@ -527,7 +529,9 @@ def create_app(client: ContextSeek | None = None) -> FastAPI:
         STAGES = ["raw", "extracted", "knowledge", "skill"]
 
         all_scopes: list[str] = ctx.list_scopes()
-        seen_scopes: list[str] = [scope] if scope and scope in all_scopes else all_scopes
+        seen_scopes: list[str] = (
+            [scope] if scope and scope in all_scopes else all_scopes
+        )
 
         # Single pass: load all items across all scopes
         total_items = 0
@@ -711,6 +715,7 @@ def create_app(client: ContextSeek | None = None) -> FastAPI:
         backend = s.storage.backend
         if backend == "oceanbase":
             from contextseek.config.settings import OceanBaseSettings
+
             ob = OceanBaseSettings()
             result["ob_host"] = ob.host
             result["ob_port"] = ob.port
@@ -718,6 +723,7 @@ def create_app(client: ContextSeek | None = None) -> FastAPI:
             result["ob_table_name"] = ob.table_name
         elif backend == "seekdb":
             from contextseek.config.settings import SeekDBSettings
+
             sdb = SeekDBSettings()
             if sdb.host:
                 result["seekdb_mode"] = "server"
@@ -729,6 +735,7 @@ def create_app(client: ContextSeek | None = None) -> FastAPI:
                 result["seekdb_path"] = str(Path(sdb.path).expanduser())
         elif backend == "sqlite":
             from contextseek.config.settings import SQLiteSettings
+
             sq = SQLiteSettings()
             result["sqlite_path"] = str(Path(sq.path).expanduser())
         elif backend == "file":
@@ -769,6 +776,7 @@ def create_app(client: ContextSeek | None = None) -> FastAPI:
             _update_env_file(updates)
         except FileNotFoundError as e:
             from fastapi import HTTPException
+
             raise HTTPException(status_code=500, detail=str(e)) from e
         return {"status": "ok", "restart_required": True}
 
@@ -798,6 +806,7 @@ def create_app(client: ContextSeek | None = None) -> FastAPI:
         package = (body.get("package") or "").strip()
         if not package:
             from fastapi import HTTPException
+
             raise HTTPException(status_code=400, detail="package is required")
 
         uv_bin = shutil.which("uv")

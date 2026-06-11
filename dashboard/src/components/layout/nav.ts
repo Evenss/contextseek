@@ -1,11 +1,11 @@
 import {
+  Eye,
   GitGraph,
   LayoutDashboard,
   PlusCircle,
   Search,
   Settings,
   Sparkles,
-  Table2,
   Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -30,7 +30,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { id: "overview", icon: LayoutDashboard },
   { id: "retrieve", icon: Search },
-  { id: "browse", icon: Table2 },
+  { id: "browse", icon: Eye },
   { id: "write", icon: PlusCircle },
   { id: "evolution", icon: Sparkles },
   { id: "provenance", icon: GitGraph },
