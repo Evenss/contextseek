@@ -588,9 +588,12 @@ def _runtime_env_publish_paths(
     if data_dir_raw:
         paths.append(Path(data_dir_raw).expanduser() / "runtime.env")
 
-    root = plugin_dir or ClaudeCodePluginRuntimeInstaller(
-        plugin_name=plugin_name,
-    ).prepared_plugin_dir()
+    root = (
+        plugin_dir
+        or ClaudeCodePluginRuntimeInstaller(
+            plugin_name=plugin_name,
+        ).prepared_plugin_dir()
+    )
     if root.exists():
         paths.append(root / "config" / "runtime.env")
 

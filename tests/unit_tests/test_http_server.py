@@ -248,9 +248,7 @@ def test_http_update_config_normalizes_embedding_none(monkeypatch, tmp_path) -> 
     assert 'EMBEDDING_KWARGS={"api_key": ""}\n' in contents
 
 
-def test_http_update_config_desktop_schedules_restart(
-    monkeypatch, tmp_path
-) -> None:
+def test_http_update_config_desktop_schedules_restart(monkeypatch, tmp_path) -> None:
     env_path = tmp_path / "config.env"
     env_path.write_text(
         "EMBEDDING_PROVIDER=none\nEMBEDDING_MODEL=none\n",
