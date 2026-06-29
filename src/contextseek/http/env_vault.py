@@ -195,9 +195,7 @@ def _resolve_template_path(template_path: str) -> Path:
     if path.is_dir():
         path = path / ".env.example"
     if not path.is_file():
-        raise HTTPException(
-            status_code=404, detail=f"template not found: {path}"
-        )
+        raise HTTPException(status_code=404, detail=f"template not found: {path}")
     return path
 
 
@@ -272,9 +270,7 @@ def _env_template_candidate(path: Path) -> dict[str, Any] | None:
 def _list_env_templates(root_path: str) -> tuple[Path, list[dict[str, Any]]]:
     root = Path(root_path).expanduser()
     if not root.exists():
-        raise HTTPException(
-            status_code=404, detail=f"path not found: {root}"
-        )
+        raise HTTPException(status_code=404, detail=f"path not found: {root}")
 
     if root.is_file():
         candidate = _env_template_candidate(root)
